@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:repartojusto/core/widgets/common_widgets.dart';
+import 'package:repartojusto/core/utils/utils.dart';
+import 'package:repartojusto/core/errors/app_error.dart';
+import 'package:repartojusto/features/auth/application/auth_providers.dart';
+import 'package:repartojusto/features/auth/data/auth_repository.dart';
 
-import '../../../../../core/widgets/common_widgets.dart';
-import '../../../../../core/utils/utils.dart';
-
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -30,12 +34,55 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // TODO: Implementar login con Firebase Auth
-    await Future.delayed(const Duration(seconds: 1)); // Simulación
+    final result = await ref.read(authRepositoryProvider).signInWithEmail(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
 
     if (mounted) {
       setState(() => _isLoading = false);
-      context.go('/role-selection');
+      result.fold(
+        onSuccess: (credential) {
+          // La redirección la maneja el router
+        },
+        onError: (error) {
+          showAppSnackBar(context, error.message, isError: true);
+        },
+      );
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    final result = await ref.read(authRepositoryProvider).signInWithGoogle();
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+      result.fold(
+        onSuccess: (credential) {
+          // Router maneja la redirección
+        },
+        onError: (error) {
+          if (error.code == '10' || error.message.contains('SHA-1')) {
+            showAppSnackBar(
+              context,
+              'Google Sign-In requiere registrar la SHA-1 en Firebase Console. '
+              'Mientras tanto usa email/contraseña.',
+              isError: true,
+              duration: const Duration(seconds: 6),
+            );
+          } else if (error.message.contains('popup')) {
+            showAppSnackBar(
+              context,
+              'Permite las ventanas emergentes para Google Sign-In.',
+              isError: true,
+            );
+          } else {
+            showAppSnackBar(context, error.message, isError: true);
+          }
+        },
+      );
     }
   }
 
@@ -121,7 +168,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => _showResetPasswordDialog(context),
+                          child: const Text('¿Olvidaste la contraseña?'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       LoadingButton(
                         onPressed: _submit,
                         isLoading: _isLoading,
@@ -135,10 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // Google Sign-In
                 OutlinedButton.icon(
-                  onPressed: () {
-                    // TODO: Google Sign-In
-                    showAppSnackBar(context, 'Google Sign-In pendiente de implementar');
-                  },
+                  onPressed: _isLoading ? null : _signInWithGoogle,
                   icon: Image.asset(
                     'assets/images/google_logo.png',
                     height: 20,
@@ -169,6 +221,48 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showResetPasswordDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Recuperar contraseña'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'Email',
+            hintText: 'tucorreo@ejemplo.com',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              if (!isValidEmail(controller.text.trim())) {
+                showAppSnackBar(context, 'Email inválido', isError: true);
+                return;
+              }
+              final result = await ref.read(authRepositoryProvider).sendPasswordReset(controller.text.trim());
+              if (context.mounted) {
+                result.fold(
+                  onSuccess: (_) => showAppSnackBar(context, 'Email de recuperación enviado'),
+                  onError: (error) => showAppSnackBar(context, error.message, isError: true),
+                );
+              }
+            },
+            child: const Text('Enviar'),
+          ),
+        ],
       ),
     );
   }

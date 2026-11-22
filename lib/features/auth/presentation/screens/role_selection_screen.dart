@@ -1,10 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:repartojusto/core/widgets/common_widgets.dart';
+import 'package:repartojusto/core/utils/utils.dart';
+import 'package:repartojusto/core/errors/app_error.dart';
+import 'package:repartojusto/features/auth/application/auth_providers.dart';
+import 'package:repartojusto/features/auth/data/user_repository.dart';
+import 'package:repartojusto/features/auth/domain/app_user.dart';
 
-import '../../../../../core/widgets/common_widgets.dart';
-
-class RoleSelectionScreen extends StatelessWidget {
+class RoleSelectionScreen extends ConsumerStatefulWidget {
   const RoleSelectionScreen({super.key});
+
+  @override
+  ConsumerState<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
+}
+
+class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
+  bool _isLoading = false;
+
+  Future<void> _selectRole(UserRole role) async {
+    final user = ref.read(authStateChangesProvider).value;
+    if (user == null) return;
+
+    setState(() => _isLoading = true);
+
+    final name = user.displayName ?? 'Usuario';
+    final email = user.email ?? '';
+    final photoUrl = user.photoURL;
+
+    final result = await ref.read(userRepositoryProvider).createProfile(
+          uid: user.uid,
+          name: name,
+          email: email,
+          role: role,
+          photoUrl: photoUrl,
+        );
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+      result.fold(
+        onSuccess: (_) => context.go('/groups'),
+        onError: (error) => showAppSnackBar(context, error.message, isError: true),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +71,7 @@ class RoleSelectionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Tu rol determina qué puedes hacer en RepartoJusto',
+                'Tu rol determina qué puedes hacer en RepartoJusto. No se puede cambiar después.',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -41,10 +81,7 @@ class RoleSelectionScreen extends StatelessWidget {
 
               // Tarjeta Docente
               AppCard(
-                onTap: () {
-                  // TODO: Guardar rol en Firestore y navegar
-                  context.go('/groups');
-                },
+                onTap: _isLoading ? null : () => _selectRole(UserRole.docente),
                 child: Row(
                   children: [
                     Container(
@@ -81,10 +118,17 @@ class RoleSelectionScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                    if (_isLoading)
+                      const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Icon(
+                        Icons.chevron_right,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                   ],
                 ),
               ),
@@ -93,10 +137,7 @@ class RoleSelectionScreen extends StatelessWidget {
 
               // Tarjeta Estudiante
               AppCard(
-                onTap: () {
-                  // TODO: Guardar rol en Firestore y navegar
-                  context.go('/groups');
-                },
+                onTap: _isLoading ? null : () => _selectRole(UserRole.estudiante),
                 child: Row(
                   children: [
                     Container(
@@ -133,23 +174,26 @@ class RoleSelectionScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                    if (_isLoading)
+                      const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Icon(
+                        Icons.chevron_right,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                   ],
                 ),
               ),
 
               const Spacer(),
 
-              Text(
-                'Podrás cambiar tu rol después desde el perfil',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator()),
+
               const SizedBox(height: 16),
             ],
           ),

@@ -1,0 +1,213 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function signedIn() {
+      return request.auth != null;
+    }
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // USERS - Perfil del usuario
+    match /users/{userId} {
+      // Cualquier usuario autenticado puede leer perfiles
+      allow read: if signedIn();
+
+      // Crear: solo si el UID coincide y rol válido
+      allow create: if signedIn()
+        && userId == uid()
+        && request.resource.data.role in ['docente', 'estudiante'];
+
+      // Actualizar: solo el dueño, y el rol NO puede cambiar
+      allow update: if signedIn()
+        && userId == uid()
+        && request.resource.data.role == resource.data.role;
+
+      // Borrar: no permitido desde la app
+      allow delete: if false;
+    }
+
+    // JOIN CODES - Código de invitación (legible por cualquiera autenticado)
+    match /joinCodes/{code} {
+      allow read: if signedIn();
+
+      // Crear: solo el docente del grupo
+      allow create: if signedIn()
+        && request.resource.data.teacherId == uid();
+
+      // Actualizar/borrar: solo el docente dueño del código
+      allow update, delete: if signedIn()
+        && resource.data.teacherId == uid();
+    }
+
+    // GROUPS - Grupos de trabajo
+    match /groups/{groupId} {
+      function isMember() {
+        return signedIn() && uid() in resource.data.memberIds;
+      }
+      function isTeacher() {
+        return signedIn() && resource.data.teacherId == uid();
+      }
+
+      // Lectura: miembros o docente
+      allow read: if isMember() || isTeacher();
+
+      // Crear grupo: docente se añade a sí mismo, leaderId vacío
+      allow create: if signedIn()
+        && request.resource.data.teacherId == uid()
+        && uid() in request.resource.data.memberIds
+        && request.resource.data.leaderId == '';
+
+      // Actualizar:
+      // - Docente: puede cambiar name, period, leaderId, approvalConfig
+      // - Auto-unirse: solo añade su UID a memberIds (joinByCode usa transacción)
+      // - Auto-salir: solo quita su UID de memberIds, limpia leaderId si era él
+      allow update: if isTeacher()
+        || isSelfJoin()
+        || isSelfLeave();
+
+      // Borrar: solo docente
+      allow delete: if isTeacher();
+
+      function isSelfJoin() {
+        return signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+          && request.resource.data.memberIds.hasAll(resource.data.memberIds)
+          && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
+          && uid() in request.resource.data.memberIds;
+      }
+
+      function isSelfLeave() {
+        return signedIn()
+          && uid() in resource.data.memberIds
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'leaderId'])
+          && !(uid() in request.resource.data.memberIds)
+          && request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1
+          && (resource.data.leaderId != uid() || request.resource.data.leaderId == '');
+      }
+    }
+
+    // PROJECTS - Proyectos dentro de un grupo
+    match /projects/{projectId} {
+      function isGroupMember() {
+        return signedIn() && exists(/databases/$(database)/documents/groups/$(resource.data.groupId))
+          && uid() in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberIds;
+      }
+      function isGroupTeacher() {
+        return signedIn() && exists(/databases/$(database)/documents/groups/$(resource.data.groupId))
+          && get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.teacherId == uid();
+      }
+
+      allow read: if isGroupMember();
+      allow create: if isGroupTeacher();
+      allow update: if isGroupTeacher();
+      allow delete: if isGroupTeacher();
+    }
+
+    // TASKS - Tareas dentro de un proyecto
+    match /tasks/{taskId} {
+      function isProjectMember() {
+        return signedIn() && exists(/databases/$(database)/documents/projects/$(resource.data.projectId))
+          && exists(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId))
+          && uid() in get(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId)).data.memberIds;
+      }
+      function isProjectTeacher() {
+        return signedIn() && exists(/databases/$(database)/documents/projects/$(resource.data.projectId))
+          && exists(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId))
+          && get(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId)).data.teacherId == uid();
+      }
+
+      allow read: if isProjectMember();
+      allow create: if isProjectTeacher();
+      allow update: if isProjectTeacher()
+        || (isProjectMember() && resource.data.status == 'open' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'assigneeId']));
+      allow delete: if isProjectTeacher();
+    }
+
+    // OFFERS - Ofertas a tareas
+    match /offers/{offerId} {
+      function isTaskMember() {
+        return signedIn() && exists(/databases/$(database)/documents/tasks/$(resource.data.taskId))
+          && isProjectMemberFromTask();
+      }
+      function isProjectMemberFromTask() {
+        return exists(/databases/$(database)/documents/projects/$(resource.data.projectId))
+          && exists(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId))
+          && uid() in get(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId)).data.memberIds;
+      }
+      function isGroupTeacherFromOffer() {
+        return exists(/databases/$(database)/documents/tasks/$(resource.data.taskId))
+          && exists(/databases/$(database)/documents/projects/$(resource.data.projectId))
+          && exists(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId))
+          && get(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId)).data.teacherId == uid();
+      }
+      function isGroupLeaderFromOffer() {
+        return exists(/databases/$(database)/documents/tasks/$(resource.data.taskId))
+          && exists(/databases/$(database)/documents/projects/$(resource.data.projectId))
+          && exists(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId))
+          && get(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.groupId)).data.leaderId == uid();
+      }
+
+      // Crear oferta: solo si eres miembro, la tarea está open, y no eres el docente
+      allow create: if signedIn()
+        && exists(/databases/$(database)/documents/tasks/$(request.resource.data.taskId))
+        && get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.status == 'open'
+        && request.resource.data.studentId == uid()
+        && !isGroupTeacherFromOffer();
+
+      // Leer: miembros del grupo
+      allow read: if isTaskMember();
+
+      // Votar: solo tu propia clave en votes
+      allow update: if isTaskMember()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+        && request.resource.data.votes.keys().hasOnly([uid()])
+        && request.resource.data.votes[uid()] in ['approve', 'reject'];
+
+      // Aprobar/rechazar/forzar: docente o jefe
+      // (se hace mediante transacción en el cliente, aquí solo validamos campos inmutables)
+      allow update: if (isGroupTeacherFromOffer() || isGroupLeaderFromOffer())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvedAt', 'resolvedBy', 'resolution', 'votes'])
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.points == resource.data.points
+        && request.resource.data.taskId == resource.data.taskId;
+
+      // Borrar: solo docente
+      allow delete: if isGroupTeacherFromOffer();
+    }
+
+    // COMMENTS - Comentarios en tareas
+    match /tasks/{taskId}/comments/{commentId} {
+      function isGroupMember() {
+        return signedIn() && exists(/databases/$(database)/documents/tasks/$(taskId))
+          && exists(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/tasks/$(taskId)).data.projectId))
+          && exists(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/tasks/$(taskId)).data.projectId)).data.groupId))
+          && uid() in get(/databases/$(database)/documents/groups/$(get(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/tasks/$(taskId)).data.projectId)).data.groupId)).data.memberIds;
+      }
+
+      allow read: if isGroupMember();
+      allow create: if isGroupMember()
+        && request.resource.data.authorId == uid();
+      allow update, delete: if isGroupMember()
+        && resource.data.authorId == uid();
+    }
+
+    // ACTIVITY - Historial de eventos (solo lectura para miembros)
+    match /activity/{activityId} {
+      function isGroupMember() {
+        return signedIn() && exists(/databases/$(database)/documents/groups/$(resource.data.groupId))
+          && uid() in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberIds;
+      }
+
+      allow read: if isGroupMember();
+      allow create: if false; // Solo desde backend/transacciones
+    }
+
+    // NOTIFICATIONS - Notificaciones in-app
+    match /notifications/{notificationId} {
+      allow read, write: if signedIn() && notificationId == uid();
+    }
+  }
+}

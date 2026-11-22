@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "236819672209-031ifjcc9n27p2inkc9bmbu18smn8g4e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tunombre.repartojusto",
+            "certificate_hash": "82b68238a73cea07f565a1a923d69c8051c74639"
+          }
+        },
+        {
           "client_id": "236819672209-vb868hs4iksee9vt8jae96gl3bd9ibg0.apps.googleusercontent.com",
           "client_type": 3
         }

@@ -170,7 +170,7 @@ lib/
 
 - [x] Plan creado (`plan.md`)
 - [x] **Fase 0**: Setup del proyecto Flutter + dependencias + Firebase + tema + router
-- [ ] Fase 1: Auth + grupos + código de invitación + jefe
+- [x] **Fase 1**: Auth real + grupos + código de invitación + jefe
 - [ ] Fase 2: Proyectos y tareas
 - [ ] Fase 3: Ofertas + votación + transacción
 - [ ] Fase 4: Comentarios + equidad + notificaciones

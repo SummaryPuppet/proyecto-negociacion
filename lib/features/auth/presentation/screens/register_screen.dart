@@ -1,0 +1,218 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../../core/widgets/common_widgets.dart';
+import '../../../../../core/utils/utils.dart';
+
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    // TODO: Implementar registro con Firebase Auth
+    await Future.delayed(const Duration(seconds: 1)); // Simulación
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+      context.go('/role-selection');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Logo / Título
+                Icon(
+                  Icons.groups_rounded,
+                  size: 80,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Crear cuenta',
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Únete a RepartoJusto y organiza tus trabajos en grupo',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+
+                // Formulario
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre completo',
+                          hintText: 'Juan Pérez',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Introduce tu nombre';
+                          }
+                          if (value.trim().length < 2) {
+                            return 'Nombre muy corto';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          hintText: 'tucorreo@ejemplo.com',
+                          prefixIcon: Icon(Icons.email_outlined),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Introduce tu email';
+                          }
+                          if (!isValidEmail(value)) {
+                            return 'Email inválido';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Contraseña',
+                          hintText: 'Mínimo 8 caracteres',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Introduce una contraseña';
+                          }
+                          if (!isStrongPassword(value)) {
+                            return 'Mín 8 chars, 1 mayúscula, 1 número';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: _obscureConfirmPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Confirmar contraseña',
+                          hintText: 'Repite la contraseña',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value != _passwordController.text) {
+                            return 'Las contraseñas no coinciden';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      LoadingButton(
+                        onPressed: _submit,
+                        isLoading: _isLoading,
+                        child: const Text('Crear cuenta'),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Google Sign-In
+                OutlinedButton.icon(
+                  onPressed: () {
+                    // TODO: Google Sign-In
+                    showAppSnackBar(context, 'Google Sign-In pendiente de implementar');
+                  },
+                  icon: Image.asset(
+                    'assets/images/google_logo.png',
+                    height: 20,
+                    errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 20),
+                  ),
+                  label: const Text('Continuar con Google'),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Login
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '¿Ya tienes cuenta?',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.go('/login'),
+                      child: const Text('Inicia sesión'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "236819672209",
+    "project_id": "proyecto-negociacion",
+    "storage_bucket": "proyecto-negociacion.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:236819672209:android:e66e569a230ba846fc6330",
+        "android_client_info": {
+          "package_name": "com.tunombre.repartojusto"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "236819672209-vb868hs4iksee9vt8jae96gl3bd9ibg0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCZbraWppcSTxWj4IzgQzRZajeqpEEs4Is"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "236819672209-vb868hs4iksee9vt8jae96gl3bd9ibg0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

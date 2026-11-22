@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/role_selection_screen.dart';
+import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/groups/presentation/screens/groups_list_screen.dart';
 import '../../features/groups/presentation/screens/group_detail_screen.dart';
 import '../../features/projects/presentation/screens/projects_list_screen.dart';
@@ -15,31 +16,55 @@ import '../../features/offers/presentation/screens/offer_form_screen.dart';
 import '../../features/fairness/presentation/screens/fairness_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 
+import '../../features/auth/application/auth_providers.dart';
+
 /// Proveedor del router de la aplicación.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authStateChanges = ref.watch(authStateChangesProvider);
+  final profileState = ref.watch(currentProfileProvider);
 
   return GoRouter(
     initialLocation: '/login',
     redirect: (context, state) {
       final user = authStateChanges.value;
-      final loggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register' ||
-          state.matchedLocation == '/role-selection';
+      final profile = profileState.value;
+      final location = state.matchedLocation;
 
-      // Si no hay usuario y no está en flujo de login → login
-      if (user == null && !loggingIn) {
-        return '/login';
+      final isAuthRoute = location == '/login' ||
+          location == '/register' ||
+          location == '/role-selection';
+
+      // Sin usuario autenticado -> login
+      if (user == null) {
+        if (!isAuthRoute && location != '/') {
+          return '/login';
+        }
+        return null;
       }
 
-      // Si hay usuario y está en login → home según rol
-      if (user != null && loggingIn) {
+      // Usuario autenticado pero sin perfil -> role selection
+      if (profile == null) {
+        if (location != '/role-selection' && !isAuthRoute) {
+          return '/role-selection';
+        }
+        return null;
+      }
+
+      // Usuario con perfil completo
+      if (isAuthRoute) {
         return '/groups';
       }
 
       return null;
     },
     routes: [
+      // Splash screen (mientras carga el perfil)
+      GoRoute(
+        path: '/',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
       // Flujo de autenticación
       GoRoute(
         path: '/login',
@@ -57,7 +82,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RoleSelectionScreen(),
       ),
 
-      // Área principal (requiere auth)
+      // Área principal (requiere auth + perfil)
       GoRoute(
         path: '/groups',
         name: 'groups',

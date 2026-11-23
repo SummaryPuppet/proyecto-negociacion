@@ -11,6 +11,15 @@ class AppFormatters {
   /// Formatea una fecha como "dd/MM/yyyy".
   static String formatDate(DateTime date) => _dateFormat.format(date);
 
+  /// Parsea una fecha con formato "dd/MM/yyyy". Devuelve null si es inválida.
+  static DateTime? parseDate(String text) {
+    try {
+      return _dateFormat.parseStrict(text);
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Formatea fecha y hora como "dd/MM/yyyy HH:mm".
   static String formatDateTime(DateTime date) => _dateTimeFormat.format(date);
 

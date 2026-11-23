@@ -8,6 +8,8 @@ import 'package:repartojusto/features/auth/application/auth_providers.dart';
 import 'package:repartojusto/features/groups/application/group_providers.dart';
 import 'package:repartojusto/features/groups/data/group_repository.dart';
 import 'package:repartojusto/features/groups/domain/app_group.dart';
+import 'package:repartojusto/features/projects/application/project_providers.dart';
+import 'package:repartojusto/features/projects/domain/project.dart';
 
 class GroupDetailScreen extends ConsumerStatefulWidget {
   const GroupDetailScreen({
@@ -271,27 +273,20 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
 
         const SizedBox(height: 16),
 
-        // Proyectos (mock por ahora)
+        // Proyectos
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             SectionDivider(label: 'Proyectos'),
-            if (isTeacher)
-              TextButton.icon(
-                onPressed: () => context.go('/groups/${group.id}/projects/create'),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nuevo proyecto'),
-              ),
+            TextButton.icon(
+              onPressed: () => context.go('/groups/${group.id}/projects'),
+              icon: const Icon(Icons.folder_open, size: 18),
+              label: const Text('Ver proyectos'),
+            ),
           ],
         ),
         const SizedBox(height: 8),
-        EmptyState(
-          icon: Icons.assignment_outlined,
-          title: 'Sin proyectos',
-          message: 'Crea el primer proyecto para empezar a negociar tareas.',
-          actionLabel: isTeacher ? 'Crear proyecto' : null,
-          onAction: isTeacher ? () => context.go('/groups/${group.id}/projects/create') : null,
-        ),
+        _ProjectsPreview(groupId: group.id, isTeacher: isTeacher),
       ],
     );
   }
@@ -529,6 +524,166 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         },
         onError: (error) => showAppSnackBar(context, error.message, isError: true),
       );
+    }
+  }
+}
+
+class _ProjectsPreview extends ConsumerWidget {
+  const _ProjectsPreview({required this.groupId, required this.isTeacher});
+
+  final String groupId;
+  final bool isTeacher;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final projectsAsync = ref.watch(projectsProvider(groupId));
+
+    return projectsAsync.when(
+      data: (projects) {
+        if (projects.isEmpty) {
+          return EmptyState(
+            icon: Icons.assignment_outlined,
+            title: 'Sin proyectos',
+            message: 'Crea el primer proyecto para empezar a negociar tareas.',
+            actionLabel: isTeacher ? 'Crear proyecto' : null,
+            onAction: isTeacher
+                ? () => context.go('/groups/$groupId/projects/create')
+                : null,
+          );
+        }
+        return Column(
+          children: projects
+              .take(3)
+              .map((p) => _ProjectTile(project: p, groupId: groupId, isTeacher: isTeacher))
+              .toList(),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => ErrorScreen(
+        message: 'Error al cargar proyectos: $error',
+        onRetry: () => ref.invalidate(projectsProvider(groupId)),
+      ),
+    );
+  }
+}
+
+class _ProjectTile extends StatelessWidget {
+  const _ProjectTile({required this.project, required this.groupId, required this.isTeacher});
+
+  final Project project;
+  final String groupId;
+  final bool isTeacher;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: () => context.go('/groups/$groupId/projects/${project.id}'),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.assignment_outlined,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  project.title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    StatusChip(
+                      label: _statusLabel(project.status),
+                      status: _statusType(project.status),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${project.totalPoints} pts',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (isTeacher)
+            PopupMenuButton<String>(
+              onSelected: (value) => _handleAction(context, value, project),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'edit', child: Text('Editar')),
+                const PopupMenuItem(value: 'start', child: Text('Iniciar negociación')),
+                const PopupMenuItem(value: 'close', child: Text('Cerrar')),
+                const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+              ],
+            )
+          else
+            Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ],
+      ),
+    );
+  }
+
+  void _handleAction(BuildContext context, String action, Project project) {
+    switch (action) {
+      case 'edit':
+        showAppSnackBar(context, 'Editar proyecto (pendiente)');
+        break;
+      case 'start':
+        showAppSnackBar(context, 'Iniciar negociación (pendiente)');
+        break;
+      case 'close':
+        showAppSnackBar(context, 'Cerrar proyecto (pendiente)');
+        break;
+      case 'delete':
+        showAppSnackBar(context, 'Eliminar proyecto (pendiente)');
+        break;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'negotiating':
+        return 'En negociación';
+      case 'assigned':
+        return 'Asignado';
+      case 'closed':
+        return 'Cerrado';
+      case 'draft':
+        return 'Borrador';
+      default:
+        return status;
+    }
+  }
+
+  StatusType _statusType(String status) {
+    switch (status) {
+      case 'negotiating':
+        return StatusType.warning;
+      case 'assigned':
+        return StatusType.info;
+      case 'closed':
+        return StatusType.success;
+      case 'draft':
+        return StatusType.neutral;
+      default:
+        return StatusType.neutral;
     }
   }
 }

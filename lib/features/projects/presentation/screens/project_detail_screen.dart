@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
-import '../../../../../core/theme/app_theme.dart';
-import '../../../../../core/widgets/common_widgets.dart';
-import '../../../../../core/utils/utils.dart';
+import 'package:repartojusto/core/theme/app_theme.dart';
+import 'package:repartojusto/core/widgets/common_widgets.dart';
+import 'package:repartojusto/core/utils/utils.dart';
+import 'package:repartojusto/core/errors/app_error.dart';
+import 'package:repartojusto/features/auth/application/auth_providers.dart';
+import 'package:repartojusto/features/projects/application/project_providers.dart';
+import 'package:repartojusto/features/projects/data/project_repository.dart';
+import 'package:repartojusto/features/projects/domain/project.dart';
+import 'package:repartojusto/features/tasks/application/task_providers.dart';
+import 'package:repartojusto/features/tasks/data/task_repository.dart';
+import 'package:repartojusto/features/tasks/domain/task.dart';
 
-class ProjectDetailScreen extends StatefulWidget {
+class ProjectDetailScreen extends ConsumerStatefulWidget {
   const ProjectDetailScreen({
     super.key,
     required this.groupId,
@@ -18,10 +28,10 @@ class ProjectDetailScreen extends StatefulWidget {
   final bool isCreating;
 
   @override
-  State<ProjectDetailScreen> createState() => _ProjectDetailScreenState();
+  ConsumerState<ProjectDetailScreen> createState() => _ProjectDetailScreenState();
 }
 
-class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
+class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
@@ -118,7 +128,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                     ),
                   ],
                 ),
-                const Spacer(),
+                const SizedBox(height: 32),
                 LoadingButton(
                   onPressed: _createProject,
                   isLoading: _isLoading,
@@ -133,59 +143,76 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   }
 
   Widget _buildDetail(BuildContext context) {
-    // TODO: Conectar con stream del proyecto
-    final project = _MockProject(
-      id: widget.projectId ?? '',
-      name: 'Proyecto Final',
-      description: 'Desarrollo de una aplicación completa con Flutter y Firebase.',
-      deadline: '15/12/2025',
-      negotiationDeadline: '01/12/2025',
-      totalPoints: 120,
-      status: 'negotiating',
-      tasks: [
-        _MockTask('t1', 'Diseño UI/UX', 30, 10, 'assigned', 'Ana López'),
-        _MockTask('t2', 'Backend API', 40, 15, 'negotiating', null),
-        _MockTask('t3', 'Frontend Flutter', 35, 12, 'open', null),
-        _MockTask('t4', 'Testing y Docs', 15, 5, 'open', null),
-      ],
-    );
+    final params = (groupId: widget.groupId, projectId: widget.projectId ?? '');
+    final projectAsync = ref.watch(projectProvider(params));
+    final tasksAsync = ref.watch(tasksProvider(params));
+    final isTeacher = ref.watch(isProjectTeacherProvider(params));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(project.name),
+        title: projectAsync.when(
+          data: (p) => Text(p?.title ?? 'Cargando...'),
+          loading: () => const Text('Cargando...'),
+          error: (_, __) => const Text('Error'),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.bar_chart),
-            onPressed: () => context.go('/groups/${widget.groupId}/projects/${widget.projectId ?? ''}/fairness'),
+            onPressed: () => context.go(
+              '/groups/${widget.groupId}/projects/${widget.projectId ?? ''}/fairness',
+            ),
             tooltip: 'Equidad',
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') {
-                // TODO: Editar
-              } else if (value == 'close') {
-                // TODO: Cerrar negociación
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Editar')),
-              const PopupMenuItem(value: 'close', child: Text('Cerrar negociación')),
-            ],
-          ),
+          if (isTeacher)
+            PopupMenuButton<String>(
+              onSelected: (value) => _handleAction(context, value, projectAsync.value),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'edit', child: Text('Editar')),
+                const PopupMenuItem(value: 'start', child: Text('Iniciar negociación')),
+                const PopupMenuItem(value: 'close', child: Text('Cerrar negociación')),
+                const PopupMenuItem(value: 'delete', child: Text('Eliminar proyecto')),
+              ],
+            ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Header con progreso
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
+      body: projectAsync.when(
+        data: (project) {
+          if (project == null) {
+            return ErrorScreen(
+              message: 'Proyecto no encontrado',
+              onRetry: () => ref.invalidate(projectProvider(params)),
+            );
+          }
+          return _buildProjectContent(context, project, tasksAsync, isTeacher);
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => ErrorScreen(
+          message: 'Error: $error',
+          onRetry: () => ref.invalidate(projectProvider(params)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectContent(
+    BuildContext context,
+    Project project,
+    AsyncValue<List<Task>> tasksAsync,
+    bool isTeacher,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Header con progreso
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
@@ -203,65 +230,90 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          project.description,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        if (project.description.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            project.description,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                    CircularProgressWithPercent(
-                      progress: _calcProgress(project),
-                      size: 56,
-                      strokeWidth: 5,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _InfoChip(
-                      icon: Icons.gavel_outlined,
-                      label: 'Fin negociación: ${project.negotiationDeadline}',
-                    ),
-                    const SizedBox(width: 12),
-                    _InfoChip(
-                      icon: Icons.event_outlined,
-                      label: 'Entrega: ${project.deadline}',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Tareas
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              SectionDivider(label: 'Tareas (${project.tasks.length})'),
-              TextButton.icon(
-                onPressed: () {
-                  // TODO: Crear tarea
-                  showAppSnackBar(context, 'Crear tarea (pendiente)');
-                },
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nueva tarea'),
+                  ),
+                  CircularProgressWithPercent(
+                    progress: _calcProgress(tasksAsync.value ?? []),
+                    size: 56,
+                    strokeWidth: 5,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _InfoChip(
+                    icon: Icons.gavel_outlined,
+                    label: 'Fin negociación: ${_formatDate(project.negotiationDeadline)}',
+                  ),
+                  const SizedBox(width: 12),
+                  _InfoChip(
+                    icon: Icons.event_outlined,
+                    label: 'Entrega: ${_formatDate(project.deliveryDeadline)}',
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          ...project.tasks.map((t) => _TaskTile(
-            task: t,
-            groupId: widget.groupId,
-            projectId: widget.projectId ?? '',
-          )),
-        ],
-      ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Tareas
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            SectionDivider(label: 'Tareas (${tasksAsync.value?.length ?? 0})'),
+            if (isTeacher)
+              TextButton.icon(
+                onPressed: () => _showCreateTaskDialog(context, project),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Nueva tarea'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        tasksAsync.when(
+          data: (tasks) {
+            if (tasks.isEmpty) {
+              return EmptyState(
+                icon: Icons.checklist_outlined,
+                title: 'Sin tareas',
+                message: isTeacher
+                    ? 'Añade tareas con sus pesos para poder negociar.'
+                    : 'El docente aún no ha definido las tareas.',
+                actionLabel: isTeacher ? 'Nueva tarea' : null,
+                onAction: isTeacher ? () => _showCreateTaskDialog(context, project) : null,
+              );
+            }
+            return Column(
+              children: tasks.map((t) => _TaskTile(
+                task: t,
+                groupId: widget.groupId,
+                projectId: project.id,
+                isTeacher: isTeacher,
+              )).toList(),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => ErrorScreen(
+            message: 'Error al cargar tareas: $error',
+            onRetry: () => ref.invalidate(tasksProvider(
+              (groupId: widget.groupId, projectId: project.id),
+            )),
+          ),
+        ),
+      ],
     );
   }
 
@@ -280,17 +332,267 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   Future<void> _createProject() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
+
+    final negotiationDate = AppFormatters.parseDate(_negotiationDeadlineController.text);
+    final deliveryDate = AppFormatters.parseDate(_deadlineController.text);
+    if (negotiationDate == null || deliveryDate == null) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        showAppSnackBar(context, 'Fechas inválidas', isError: true);
+      }
+      return;
+    }
+
+    final result = await ref.read(projectRepositoryProvider).createProject(
+          groupId: widget.groupId,
+          title: _nameController.text.trim(),
+          description: _descController.text.trim(),
+          negotiationDeadline: negotiationDate.millisecondsSinceEpoch,
+          deliveryDeadline: deliveryDate.millisecondsSinceEpoch,
+          teacherId: ref.read(authStateChangesProvider).value!.uid,
+        );
+
     if (mounted) {
       setState(() => _isLoading = false);
-      context.go('/groups/${widget.groupId}/projects');
-      showAppSnackBar(context, 'Proyecto creado (simulado)');
+      result.fold(
+        onSuccess: (project) {
+          context.go('/groups/${widget.groupId}/projects');
+          showAppSnackBar(context, 'Proyecto creado: ${project.title}');
+        },
+        onError: (error) => showAppSnackBar(context, error.message, isError: true),
+      );
     }
   }
 
-  double _calcProgress(_MockProject p) {
-    final assigned = p.tasks.where((t) => t.status == 'assigned').length;
-    return p.tasks.isEmpty ? 0 : assigned / p.tasks.length;
+  void _handleAction(BuildContext context, String action, Project? project) {
+    if (project == null) return;
+    switch (action) {
+      case 'edit':
+        showAppSnackBar(context, 'Editar proyecto (pendiente)');
+        break;
+      case 'start':
+        _confirmStartNegotiation(context, project);
+        break;
+      case 'close':
+        _confirmCloseProject(context, project);
+        break;
+      case 'delete':
+        _confirmDelete(context, project);
+        break;
+    }
+  }
+
+  void _confirmStartNegotiation(BuildContext context, Project project) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Iniciar negociación',
+      message: 'Los estudiantes podrán ofertar en las tareas. ¿Continuar?',
+      confirmText: 'Iniciar',
+    );
+    if (!confirmed) return;
+
+    final result = await ref.read(projectRepositoryProvider).setStatus(
+          groupId: widget.groupId,
+          projectId: project.id,
+          status: 'negotiating',
+        );
+    if (context.mounted) {
+      result.fold(
+        onSuccess: (_) => showAppSnackBar(context, 'Negociación iniciada'),
+        onError: (error) => showAppSnackBar(context, error.message, isError: true),
+      );
+    }
+  }
+
+  void _confirmCloseProject(BuildContext context, Project project) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Cerrar negociación',
+      message: 'No se podrán hacer más cambios. ¿Seguro?',
+      confirmText: 'Cerrar',
+      isDestructive: true,
+    );
+    if (!confirmed) return;
+
+    final result = await ref.read(projectRepositoryProvider).setStatus(
+          groupId: widget.groupId,
+          projectId: project.id,
+          status: 'closed',
+        );
+    if (context.mounted) {
+      result.fold(
+        onSuccess: (_) => showAppSnackBar(context, 'Proyecto cerrado'),
+        onError: (error) => showAppSnackBar(context, error.message, isError: true),
+      );
+    }
+  }
+
+  void _confirmDelete(BuildContext context, Project project) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Eliminar proyecto',
+      message: 'Se eliminarán todas las tareas y ofertas. ¿Seguro?',
+      confirmText: 'Eliminar',
+      isDestructive: true,
+    );
+    if (!confirmed) return;
+
+    final result = await ref.read(projectRepositoryProvider).deleteProject(widget.groupId, project.id);
+    if (context.mounted) {
+      result.fold(
+        onSuccess: (_) {
+          context.go('/groups/${widget.groupId}/projects');
+          showAppSnackBar(context, 'Proyecto eliminado');
+        },
+        onError: (error) => showAppSnackBar(context, error.message, isError: true),
+      );
+    }
+  }
+
+  void _showCreateTaskDialog(BuildContext context, Project project) {
+    final titleController = TextEditingController();
+    final descController = TextEditingController();
+    final weightController = TextEditingController();
+    final hoursController = TextEditingController();
+    final skillsController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nueva tarea'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Título de la tarea',
+                  hintText: 'ej. Diseño UI/UX',
+                  prefixIcon: Icon(Icons.title_outlined),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción',
+                  hintText: 'Detalles de la tarea...',
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: weightController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Puntos',
+                        hintText: 'ej. 40',
+                        prefixIcon: Icon(Icons.star_outlined),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: hoursController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Horas est.',
+                        hintText: 'ej. 12',
+                        prefixIcon: Icon(Icons.access_time_outlined),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: skillsController,
+                decoration: const InputDecoration(
+                  labelText: 'Skills (separadas por coma)',
+                  hintText: 'Flutter, Firebase, SQL',
+                  prefixIcon: Icon(Icons.code_outlined),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final title = titleController.text.trim();
+              final weight = int.tryParse(weightController.text.trim()) ?? 0;
+              final hours = int.tryParse(hoursController.text.trim()) ?? 0;
+              final skills = skillsController.text
+                  .split(',')
+                  .map((s) => s.trim())
+                  .where((s) => s.isNotEmpty)
+                  .toList();
+
+              if (title.isEmpty || weight <= 0 || hours <= 0) {
+                showAppSnackBar(context, 'Completa título, puntos y horas', isError: true);
+                return;
+              }
+
+              Navigator.pop(context);
+
+              final result = await ref.read(taskRepositoryProvider).createTask(
+                    groupId: widget.groupId,
+                    projectId: project.id,
+                    title: title,
+                    description: descController.text.trim(),
+                    weight: weight,
+                    estHours: hours,
+                    skills: skills,
+                  );
+
+              if (context.mounted) {
+                result.fold(
+                  onSuccess: (task) async {
+                    // Actualizar puntos totales del proyecto
+                    final tasks = ref.read(tasksProvider(
+                      (groupId: widget.groupId, projectId: project.id),
+                    )).value ?? [];
+                    final totalPoints = tasks.fold(0, (sum, t) => sum + t.weight) + task.weight;
+                    await ref.read(projectRepositoryProvider).updateTotalPoints(
+                          groupId: widget.groupId,
+                          projectId: project.id,
+                          totalPoints: totalPoints,
+                        );
+                    if (context.mounted) {
+                      showAppSnackBar(context, 'Tarea creada: ${task.title}');
+                    }
+                  },
+                  onError: (error) => showAppSnackBar(context, error.message, isError: true),
+                );
+              }
+            },
+            child: const Text('Crear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _calcProgress(List<Task> tasks) {
+    if (tasks.isEmpty) return 0;
+    final assigned = tasks.where((t) => t.isAssigned || t.isDone).length;
+    return assigned / tasks.length;
+  }
+
+  String _formatDate(int timestamp) {
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    return DateFormat('dd/MM/yyyy', 'es').format(date);
   }
 
   String _statusLabel(String status) {
@@ -301,6 +603,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         return 'Asignado';
       case 'closed':
         return 'Cerrado';
+      case 'draft':
+        return 'Borrador';
       default:
         return status;
     }
@@ -314,43 +618,12 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         return StatusType.info;
       case 'closed':
         return StatusType.success;
+      case 'draft':
+        return StatusType.neutral;
       default:
         return StatusType.neutral;
     }
   }
-}
-
-class _MockProject {
-  final String id;
-  final String name;
-  final String description;
-  final String deadline;
-  final String negotiationDeadline;
-  final int totalPoints;
-  final String status;
-  final List<_MockTask> tasks;
-
-  _MockProject({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.deadline,
-    required this.negotiationDeadline,
-    required this.totalPoints,
-    required this.status,
-    required this.tasks,
-  });
-}
-
-class _MockTask {
-  final String id;
-  final String title;
-  final int weight;
-  final int estHours;
-  final String status;
-  final String? assignee;
-
-  _MockTask(this.id, this.title, this.weight, this.estHours, this.status, this.assignee);
 }
 
 class _InfoChip extends StatelessWidget {
@@ -389,23 +662,23 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-class _TaskTile extends StatelessWidget {
+class _TaskTile extends ConsumerWidget {
   const _TaskTile({
     required this.task,
     required this.groupId,
     required this.projectId,
+    required this.isTeacher,
   });
 
-  final _MockTask task;
+  final Task task;
   final String groupId;
   final String projectId;
+  final bool isTeacher;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return AppCard(
-      onTap: () => context.go(
-        '/groups/$groupId/projects/$projectId/tasks/${task.id}',
-      ),
+      onTap: () => context.go('/groups/$groupId/projects/$projectId/tasks/${task.id}'),
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
@@ -413,7 +686,7 @@ class _TaskTile extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: _statusColor(context).withOpacity(0.15),
+              color: _statusColor(context).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -448,19 +721,68 @@ class _TaskTile extends StatelessWidget {
                     _MiniStat(icon: Icons.star_outlined, value: '${task.weight} pts', color: Colors.amber.shade700),
                     const SizedBox(width: 16),
                     _MiniStat(icon: Icons.access_time_outlined, value: '${task.estHours} h', color: Theme.of(context).colorScheme.primary),
-                    if (task.assignee != null) ...[
+                    if (task.assigneeId != null) ...[
                       const SizedBox(width: 16),
-                      _MiniStat(icon: Icons.person_outline, value: task.assignee!, color: context.success),
+                      _MiniStat(icon: Icons.person_outline, value: _assigneeName(ref), color: context.success),
                     ],
                   ],
                 ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          if (isTeacher)
+            PopupMenuButton<String>(
+              onSelected: (value) => _handleAction(context, ref, value),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'edit', child: Text('Editar')),
+                const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                if (task.isOpen)
+                  const PopupMenuItem(value: 'assign', child: Text('Asignar manualmente')),
+              ],
+            )
+          else
+            Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ],
       ),
     );
+  }
+
+  void _handleAction(BuildContext context, WidgetRef ref, String action) {
+    switch (action) {
+      case 'edit':
+        showAppSnackBar(context, 'Editar tarea (pendiente)');
+        break;
+      case 'delete':
+        _confirmDelete(context, ref);
+        break;
+      case 'assign':
+        showAppSnackBar(context, 'Asignar manualmente (pendiente de Fase 3)');
+        break;
+    }
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Eliminar tarea',
+      message: 'Se eliminarán sus ofertas y comentarios. ¿Seguro?',
+      confirmText: 'Eliminar',
+      isDestructive: true,
+    );
+    if (!confirmed) return;
+
+    final result = await ref.read(taskRepositoryProvider).deleteTask(groupId, projectId, task.id);
+    if (context.mounted) {
+      result.fold(
+        onSuccess: (_) => showAppSnackBar(context, 'Tarea eliminada'),
+        onError: (error) => showAppSnackBar(context, error.message, isError: true),
+      );
+    }
+  }
+
+  String _assigneeName(WidgetRef ref) {
+    // TODO: Cargar nombre real del usuario desde users collection
+    return task.assigneeId!.substring(0, 8);
   }
 
   Color _statusColor(BuildContext context) {

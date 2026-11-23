@@ -1,6 +1,6 @@
 # AGENTS.md
 
-RepartoJusto: Flutter app (Spanish UI, Material 3) for negotiating task distribution among students. Android-first; Firebase Spark only (Auth + Firestore, no Functions/Storage/push). `plan.md` is the product/domain spec (its phase checklist is stale); `README.md` is still the default Flutter template.
+RepartoJusto: Flutter app (Spanish UI, Material 3, `es_ES` forced in `main.dart`) for negotiating task distribution among students. Android + web only. Firebase Spark plan (Auth + Firestore; no Functions/Storage/push). `plan.md` is the product/domain spec, but its data model and phase checklist do not match the code — verify against source. `README.md` is still the untouched Flutter template.
 
 ## Commands
 
@@ -12,34 +12,33 @@ flutter test test/widget_test.dart
 flutter run -d <android-device>  # or -d chrome
 ```
 
-- Generated `*.freezed.dart` / `*.g.dart` files are not committed and not gitignored. Generate them before analyzing/building.
 - No Makefile, CI, or task runner; use the Flutter CLI directly.
-- The only test is a smoke test. It pumps `RepartoJustoApp` without `Firebase.initializeApp`, so it needs Firebase init/mocking once the app compiles.
+- `flutter analyze` currently reports ~57 warnings/infos but **zero errors**. Don't treat the warning count as a broken tree, and don't mass-fix unrelated lints.
+- Generated `*.freezed.dart` / `*.g.dart` are not gitignored. `auth`/`groups` ones are committed; `projects`/`tasks` ones are untracked. Regenerate after editing a model's fields.
+- `riverpod_generator` is in dev_dependencies but no `@riverpod` is used. Providers are hand-written `Provider`/`StreamProvider`, some with record-typed families (e.g. `({String groupId, String projectId})`). Don't introduce codegen for them.
+- The only test is a smoke test: pumps `RepartoJustoApp` without `Firebase.initializeApp` and only checks that the login screen renders. It passes today and exercises no Firestore/Auth logic.
 
 ## Architecture
 
-- Feature-first: `lib/features/<feature>/{application,data,domain,presentation}`. Only `auth` and `groups` currently have data/domain layers; `projects`, `tasks`, `offers`, `fairness`, and `profile` are presentation-only mock/TODO screens. `notifications`/`comments` have no feature folder yet.
-- `lib/core/` holds shared `errors` (`AppError`, `Result<T>`), `router`, `theme`, `utils`, `widgets`, and Firebase config.
-- Riverpod providers are hand-written `Provider`/`StreamProvider`s, not `@riverpod` codegen. Repositories are plain classes; providers wrap them.
-- Repositories return `Result<T>` and map exceptions through `mapToAppError`; UI uses `fold`/`isSuccess` instead of catching Firebase exceptions.
-- Models are freezed + json_serializable. Firestore timestamps are `int` epoch millis (`createdAt`), not `Timestamp`; enum JSON values are Spanish (`docente`, `estudiante`).
-- Routing is centralized in `lib/core/router/app_router.dart` (nested `/groups/:groupId/projects/:projectId/...`). Auth redirects use `authStateChangesProvider` + `currentProfileProvider`.
-- All user-facing strings are Spanish; locale is forced to `es_ES` in `main.dart`.
+- Feature-first: `lib/features/<feature>/{application,data,domain,presentation}`. `auth`, `groups`, `projects`, `tasks` have real data/domain layers. `offers`, `fairness`, `profile` are presentation-only with mock data/TODOs; `notifications` and `comments` have no feature folder.
+- `lib/core/` holds `errors` (`AppError`, `Result<T>`), `router`, `theme`, `utils` (validators, formatters, join-code generator), `widgets`, and Firebase config.
+- Repositories are plain classes wrapping Firestore; a `*RepositoryProvider` wraps each. Async methods return `Result<T>` and map exceptions via `mapToAppError`; UI uses `fold`/`isSuccess` instead of catching Firebase exceptions. Watch methods return raw streams, not `Result`.
+- Routing is centralized in `lib/core/router/app_router.dart`; redirects depend on `authStateChangesProvider` + `currentProfileProvider` from `auth_providers.dart`.
+- Models are freezed + json_serializable. Firestore timestamps are `int` epoch millis (`createdAt`, `updatedAt`), not `Timestamp`; enum JSON values are Spanish (`docente`, `estudiante`); status values are lowercase English (`open`, `draft`, `negotiating`, ...).
+- `memberIds` is denormalized on groups/projects/tasks. `users.role` is global; `groups.leaderId` is per-group; teacher rights derive from `groups.teacherId`.
 
-## Firebase / domain
+## Firebase / data-path gotchas
 
-- Firebase project `proyecto-negociacion`. Options live in root `lib/firebase_options.dart`; `lib/core/firebase/firebase_options.dart` was deleted but `firebase.json` still points to it, so don't run `flutterfire configure` blindly.
-- Only Android and web options exist; iOS/macOS/Windows/Linux throw `UnsupportedError` from `DefaultFirebaseOptions.currentPlatform`.
-- `firestore.rules` is the security source of truth but is not wired into `firebase.json` (no `firestore` section). Deploy manually or add the config.
-- No `firestore.indexes.json`: `GroupRepository.watchMyGroups` (`memberIds array-contains` + `createdAt desc`) needs a composite index; create it in the console.
-- Collections: `users`, `groups`, `joinCodes`, `projects`, `tasks` (+ `comments` subcollection), `offers`, `activity`, `notifications`. `memberIds` is denormalized on groups/projects/tasks; `users.role` is global, `groups.leaderId` is per-group.
-- Offers: votes are a `{uid: approve|reject}` map; leader vote weight, quorum, and teacher override come from `groups.approvalConfig`. Fairness quota = `totalPoints / student count`; warn above +20% and require a reason.
-- Rules currently deny all client writes to `activity`, yet there is no backend (Spark, no Functions); history writes from client transactions will fail. Resolve this before implementing offer resolution.
-- Google Sign-In needs a real Web client ID in `lib/core/firebase/google_auth_config.dart` (`TU_WEB_CLIENT_ID_AQUI` is a placeholder); `AuthRepository.googleWebClientId` also recursively returns itself and must be fixed.
+- **Rules and repositories disagree on paths.** Repositories use subcollections `groups/{groupId}/projects/{projectId}/tasks`, but `firestore.rules` matches top-level `/projects/{id}`, `/tasks/{id}`, `/offers/{id}`, `/tasks/{taskId}/comments/{id}`. Firestore rules don't cascade into subcollections, so nested project/task access is denied. Fix one side before expecting any project/task CRUD to work.
+- `firestore.rules` is the security source of truth but is not referenced in `firebase.json` (which has no `firestore` section). Deploy manually (`firebase deploy --only firestore:rules`) or add the config.
+- Rules deny all client writes to `activity` (`allow create: if false`) and there is no backend, so writing negotiation history from a client transaction will fail. Resolve before implementing offer resolution.
+- `firebase.json` points to `lib/core/firebase/firebase_options.dart`, which was deleted; `main.dart` imports the root `lib/firebase_options.dart`. Dart config exists only for Android and web; other platforms throw `UnsupportedError`. Don't run `flutterfire configure` blindly — it will overwrite these paths.
+- No `firestore.indexes.json`. `GroupRepository.watchMyGroups` (`memberIds array-contains` + `createdAt desc`) needs a composite index created in the console. `plan.md` lists further planned indexes.
+- Google Sign-In is not functional: `lib/core/firebase/google_auth_config.dart` still has `TU_WEB_CLIENT_ID_AQUI`, and `AuthRepository.googleWebClientId` returns itself (analyzer flags `recursive_getters`). The import of the config is currently unused.
+- Domain rules for offers live only in `plan.md` + `firestore.rules` (no code yet): votes are a `{uid: approve|reject}` map, leader/teacher resolution comes from `groups.approvalConfig`, fairness quota = `totalPoints / student count`, warn above +20% and require a reason.
 
-## Known state (Nov 2026)
+## Conventions
 
-- The working tree has an uncommitted move to the layered feature layout and does not compile. `flutter analyze` is the source of truth; expect missing generated files, missing imports in `splash_screen.dart`, and intra-feature imports one `..` too deep (from `application/` use `../data`, from `data/` use `../domain`, from `presentation/screens/` use `../../application`).
-- `group_providers.dart` defines `firebaseAuthStateProvider` as a throwing stub; `myGroupsProvider` depends on it, so the groups list crashes until it is wired to `authStateChangesProvider`.
-- `app_router.dart` declares its own `authStateChangesProvider` that shadows the one in `auth_providers.dart`; prefer the auth-providers version and remove the duplicate.
-- Most non-auth/groups screens use mock data or TODOs; don't assume Firestore wiring exists.
+- All user-facing strings are Spanish; keep new UI text Spanish. `lib/core/utils/utils.dart` holds `AppFormatters` plus top-level helpers `isValidEmail`, `isStrongPassword`, and `generateJoinCode` (reuse them instead of re-implementing).
+- `main.dart` also clamps `textScaler` to 0.85–1.3 and follows system light/dark theme; local notifications are stubbed out (the init call is commented).
+- Most non-auth/groups/projects/tasks screens are mock/TODO UIs — don't assume Firestore wiring exists there.

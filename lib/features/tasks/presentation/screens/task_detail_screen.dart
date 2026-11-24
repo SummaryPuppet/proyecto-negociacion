@@ -10,7 +10,7 @@ import 'package:repartojusto/features/projects/application/project_providers.dar
 import 'package:repartojusto/features/tasks/application/task_providers.dart';
 import 'package:repartojusto/features/tasks/data/task_repository.dart';
 import 'package:repartojusto/features/tasks/domain/task.dart';
-
+import 'offer_list.dart';
 class TaskDetailScreen extends ConsumerWidget {
   const TaskDetailScreen({
     super.key,

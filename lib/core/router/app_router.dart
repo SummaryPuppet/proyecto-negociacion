@@ -44,7 +44,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Usuario autenticado pero sin perfil -> role selection
       if (profile == null) {
-        if (location != '/role-selection' && !isAuthRoute) {
+        if (location != '/role-selection') {
           return '/role-selection';
         }
         return null;
@@ -196,7 +196,3 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Proveedor que expone los cambios de estado de autenticación.
-final authStateChangesProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
-});

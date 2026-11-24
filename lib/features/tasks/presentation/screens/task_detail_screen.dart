@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:repartojusto/features/tasks/presentation/widgets/comments_section.dart';
 import 'package:repartojusto/core/widgets/common_widgets.dart';
 import 'package:repartojusto/core/utils/utils.dart';
 import 'package:repartojusto/core/errors/app_error.dart';
@@ -10,7 +10,9 @@ import 'package:repartojusto/features/projects/application/project_providers.dar
 import 'package:repartojusto/features/tasks/application/task_providers.dart';
 import 'package:repartojusto/features/tasks/data/task_repository.dart';
 import 'package:repartojusto/features/tasks/domain/task.dart';
+
 import 'offer_list.dart';
+
 class TaskDetailScreen extends ConsumerWidget {
   const TaskDetailScreen({
     super.key,
@@ -45,7 +47,10 @@ class TaskDetailScreen extends ConsumerWidget {
               itemBuilder: (context) => [
                 const PopupMenuItem(value: 'edit', child: Text('Editar')),
                 const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
-                const PopupMenuItem(value: 'force', child: Text('Forzar asignación')),
+                const PopupMenuItem(
+                  value: 'force',
+                  child: Text('Forzar asignación'),
+                ),
               ],
             ),
         ],
@@ -58,19 +63,26 @@ class TaskDetailScreen extends ConsumerWidget {
               onRetry: () => ref.invalidate(taskProvider(params)),
             );
           }
+
           return Column(
-                children: [
-                  Expanded(
-                    child: _buildTaskContent(context, ref, task),
-                  ),
-                  OfferList(
-                    projectId: projectId,
-                    taskId: taskId,
-                    isGroupLeader: false, // Luego lo cambiaremos por la variable real
-                    isTeacher: isTeacher,
-                  ),
-                ],
-              );
+            children: [
+              Expanded(
+                child: _buildTaskContent(
+                  context,
+                  ref,
+                  task,
+                  projectAsync.value,
+                  isTeacher,
+                ),
+              ),
+              OfferList(
+                projectId: projectId,
+                taskId: taskId,
+                isGroupLeader: false,
+                isTeacher: isTeacher,
+              ),
+            ],
+          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => ErrorScreen(
@@ -123,7 +135,9 @@ class TaskDetailScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          task.description.isEmpty ? 'Sin descripción' : task.description,
+                          task.description.isEmpty
+                              ? 'Sin descripción'
+                              : task.description,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],
@@ -152,10 +166,12 @@ class TaskDetailScreen extends ConsumerWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: task.skills
-                      .map((s) => Chip(
-                            label: Text(s),
-                            avatar: const Icon(Icons.code_outlined, size: 16),
-                          ))
+                      .map(
+                        (s) => Chip(
+                          label: Text(s),
+                          avatar: const Icon(Icons.code_outlined, size: 16),
+                        ),
+                      )
                       .toList(),
                 ),
               ],
@@ -201,16 +217,15 @@ class TaskDetailScreen extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // Comentarios (Fase 4)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            SectionDivider(label: 'Comentarios'),
-            TextButton.icon(
-              onPressed: () => showAppSnackBar(context, 'Comentarios disponibles en la Fase 4'),
-              icon: const Icon(Icons.add_comment, size: 18),
-              label: const Text('Comentar'),
-            ),
-          ],
+        // Comentarios de la tarea
+        SectionDivider(label: 'Comentarios'),
+        const SizedBox(height: 8),
+        AppCard(
+          child: CommentsSection(
+            groupId: groupId,
+            projectId: projectId,
+            taskId: taskId,
+          ),
         ),
         AppCard(
           child: Column(
@@ -260,14 +275,17 @@ class TaskDetailScreen extends ConsumerWidget {
     );
     if (!confirmed) return;
 
-    final result = await ref.read(taskRepositoryProvider).deleteTask(groupId, projectId, taskId);
+    final result = await ref
+        .read(taskRepositoryProvider)
+        .deleteTask(groupId, projectId, taskId);
     if (context.mounted) {
       result.fold(
         onSuccess: (_) {
           context.go('/groups/$groupId/projects/$projectId');
           showAppSnackBar(context, 'Tarea eliminada');
         },
-        onError: (error) => showAppSnackBar(context, error.message, isError: true),
+        onError: (error) =>
+            showAppSnackBar(context, error.message, isError: true),
       );
     }
   }
@@ -339,9 +357,8 @@ class _StatCircle extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
     );

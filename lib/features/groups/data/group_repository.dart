@@ -49,7 +49,9 @@ class GroupRepository {
           createdAt: DateTime.now().millisecondsSinceEpoch,
         );
 
-        transaction.set(groupRef, group.toJson());
+        final groupData = group.toJson();
+        groupData['approvalConfig'] = group.approvalConfig.toJson();
+        transaction.set(groupRef, groupData);
         transaction.set(joinCodeRef!, {
           'groupId': groupRef.id,
           'groupName': name.trim(),
@@ -114,11 +116,14 @@ class GroupRepository {
   Stream<List<AppGroup>> watchMyGroups(String userId) {
     return _groupsCollection
         .where('memberIds', arrayContains: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AppGroup.fromJson(doc.data()))
-            .toList());
+        .map((snapshot) {
+          final groups = snapshot.docs
+              .map((doc) => AppGroup.fromJson(doc.data()))
+              .toList();
+          groups.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return groups;
+        });
   }
 
   /// Observa un grupo específico.

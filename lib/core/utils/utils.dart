@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -46,13 +47,10 @@ class AppFormatters {
 /// Genera un código de invitación corto y legible.
 String generateJoinCode({int length = 6}) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Sin I, O, 0, 1
-  final random = DateTime.now().millisecondsSinceEpoch;
+  final random = Random();
   final buffer = StringBuffer();
-  var seed = random;
-
   for (var i = 0; i < length; i++) {
-    seed = (seed * 1664525 + 1013904223) % 4294967296; // LCG simple
-    buffer.write(chars[seed % chars.length]);
+    buffer.write(chars[random.nextInt(chars.length)]);
   }
   return buffer.toString();
 }

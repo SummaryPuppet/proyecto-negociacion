@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:repartojusto/core/widgets/common_widgets.dart';
@@ -192,18 +193,36 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                     ),
                   ),
                   const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      group.joinCode,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.primary,
-                        letterSpacing: 2,
+                  InkWell(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: group.joinCode));
+                      showAppSnackBar(context, 'Código copiado al portapapeles: ${group.joinCode}');
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            group.joinCode,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.copy_rounded,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -339,10 +358,17 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
+    final currentUid = ref.read(authRepositoryProvider).currentUser?.uid ??
+        ref.read(authStateChangesProvider).value?.uid;
+    if (currentUid == null) {
+      showAppSnackBar(context, 'Sesión no válida', isError: true);
+      return;
+    }
+
     final result = await ref.read(groupRepositoryProvider).createGroup(
           name: _nameController.text.trim(),
           period: _periodController.text.trim(),
-          teacherId: ref.read(authStateChangesProvider).value!.uid,
+          teacherId: currentUid,
         );
 
     if (mounted) {
@@ -350,7 +376,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
       result.fold(
         onSuccess: (group) {
           ref.read(userRepositoryProvider).addGroupId(
-                ref.read(authStateChangesProvider).value!.uid,
+                currentUid,
                 group.id,
               );
           context.go('/groups');

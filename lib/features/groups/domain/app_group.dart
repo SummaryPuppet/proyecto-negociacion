@@ -5,6 +5,7 @@ part 'app_group.freezed.dart';
 part 'app_group.g.dart';
 
 @freezed
+@JsonSerializable(explicitToJson: true)
 abstract class AppGroup with _$AppGroup {
   const factory AppGroup({
     required String id,

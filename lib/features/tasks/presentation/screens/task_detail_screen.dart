@@ -58,7 +58,19 @@ class TaskDetailScreen extends ConsumerWidget {
               onRetry: () => ref.invalidate(taskProvider(params)),
             );
           }
-          return _buildTaskContent(context, ref, task, projectAsync.value, isTeacher);
+          return Column(
+                children: [
+                  Expanded(
+                    child: _buildTaskContent(context, ref, task),
+                  ),
+                  OfferList(
+                    projectId: projectId,
+                    taskId: taskId,
+                    isGroupLeader: false, // Luego lo cambiaremos por la variable real
+                    isTeacher: isTeacher,
+                  ),
+                ],
+              );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => ErrorScreen(

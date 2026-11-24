@@ -25,7 +25,10 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
 
     setState(() => _isLoading = true);
 
-    final name = user.displayName ?? 'Usuario';
+    final displayName = user.displayName;
+    final name = (displayName != null && displayName.trim().isNotEmpty)
+        ? displayName.trim()
+        : (user.email?.isNotEmpty == true ? user.email!.split('@').first : 'Usuario');
     final email = user.email ?? '';
     final photoUrl = user.photoURL;
 

@@ -30,6 +30,6 @@ Map<String, dynamic> _$AppGroupToJson(_AppGroup instance) => <String, dynamic>{
   'leaderId': instance.leaderId,
   'memberIds': instance.memberIds,
   'joinCode': instance.joinCode,
-  'approvalConfig': instance.approvalConfig,
+  'approvalConfig': instance.approvalConfig.toJson(),
   'createdAt': instance.createdAt,
 };

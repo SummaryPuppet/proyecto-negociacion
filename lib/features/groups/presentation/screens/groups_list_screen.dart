@@ -25,6 +25,7 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Mis grupos'),
         actions: [
           IconButton(
@@ -195,10 +196,17 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
               Navigator.pop(context);
               _showingCreateDialog = false;
 
+              final currentUid = ref.read(authRepositoryProvider).currentUser?.uid ??
+                  ref.read(authStateChangesProvider).value?.uid;
+              if (currentUid == null) {
+                showAppSnackBar(context, 'Sesión no válida', isError: true);
+                return;
+              }
+
               final result = await ref.read(groupRepositoryProvider).createGroup(
                     name: nameController.text.trim(),
                     period: periodController.text.trim(),
-                    teacherId: ref.read(authStateChangesProvider).value!.uid,
+                    teacherId: currentUid,
                   );
 
               if (context.mounted) {
@@ -207,7 +215,7 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
                     showAppSnackBar(context, 'Grupo creado: ${group.name}');
                     // Añadir groupId al usuario
                     ref.read(userRepositoryProvider).addGroupId(
-                          ref.read(authStateChangesProvider).value!.uid,
+                          currentUid,
                           group.id,
                         );
                   },
@@ -250,9 +258,16 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
               if (code.isEmpty) return;
               Navigator.pop(context);
 
+              final currentUid = ref.read(authRepositoryProvider).currentUser?.uid ??
+                  ref.read(authStateChangesProvider).value?.uid;
+              if (currentUid == null) {
+                showAppSnackBar(context, 'Sesión no válida', isError: true);
+                return;
+              }
+
               final result = await ref.read(groupRepositoryProvider).joinByCode(
                     code: code,
-                    userId: ref.read(authStateChangesProvider).value!.uid,
+                    userId: currentUid,
                   );
 
               if (context.mounted) {
@@ -261,7 +276,7 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
                     showAppSnackBar(context, 'Te uniste a: ${group.name}');
                     // Añadir groupId al usuario
                     ref.read(userRepositoryProvider).addGroupId(
-                          ref.read(authStateChangesProvider).value!.uid,
+                          currentUid,
                           group.id,
                         );
                   },

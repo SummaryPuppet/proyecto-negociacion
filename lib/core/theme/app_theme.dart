@@ -19,7 +19,7 @@ class AppTheme {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     ),
     appBarTheme: const AppBarTheme(
-      centerTitle: true,
+      centerTitle: false,
       elevation: 0,
       scrolledUnderElevation: 1,
     ),
@@ -134,7 +134,7 @@ class AppTheme {
       color: const Color(0xFF1E1E1E),
     ),
     appBarTheme: const AppBarTheme(
-      centerTitle: true,
+      centerTitle: false,
       elevation: 0,
       scrolledUnderElevation: 1,
     ),

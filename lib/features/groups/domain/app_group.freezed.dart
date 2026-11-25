@@ -229,8 +229,8 @@ return $default(_that.id,_that.name,_that.period,_that.teacherId,_that.leaderId,
 }
 
 /// @nodoc
-@JsonSerializable()
 
+@JsonSerializable(explicitToJson: true)
 class _AppGroup implements AppGroup {
   const _AppGroup({required this.id, required this.name, required this.period, required this.teacherId, this.leaderId = '',  List<String> memberIds = const [], required this.joinCode, this.approvalConfig = const ApprovalConfig(), this.createdAt = 0}): _memberIds = memberIds;
   factory _AppGroup.fromJson(Map<String, dynamic> json) => _$AppGroupFromJson(json);

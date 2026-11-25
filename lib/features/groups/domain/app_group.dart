@@ -1,3 +1,4 @@
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'approval_config.dart';
 
@@ -5,8 +6,8 @@ part 'app_group.freezed.dart';
 part 'app_group.g.dart';
 
 @freezed
-@JsonSerializable(explicitToJson: true)
 abstract class AppGroup with _$AppGroup {
+  @JsonSerializable(explicitToJson: true)
   const factory AppGroup({
     required String id,
     required String name,
@@ -19,7 +20,8 @@ abstract class AppGroup with _$AppGroup {
     @Default(0) int createdAt,
   }) = _AppGroup;
 
-  factory AppGroup.fromJson(Map<String, dynamic> json) => _$AppGroupFromJson(json);
+  factory AppGroup.fromJson(Map<String, dynamic> json) =>
+      _$AppGroupFromJson(json);
 }
 
 extension AppGroupX on AppGroup {
@@ -28,5 +30,6 @@ extension AppGroupX on AppGroup {
   bool isLeader(String uid) => leaderId == uid;
   bool get hasLeader => leaderId.isNotEmpty;
 
-  AppGroup copyWithTimestamp() => copyWith(createdAt: DateTime.now().millisecondsSinceEpoch);
+  AppGroup copyWithTimestamp() =>
+      copyWith(createdAt: DateTime.now().millisecondsSinceEpoch);
 }

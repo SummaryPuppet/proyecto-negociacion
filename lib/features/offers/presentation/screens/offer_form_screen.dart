@@ -1,177 +1,204 @@
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/widgets/common_widgets.dart';
-import '../../../../../core/utils/utils.dart';
+import 'package:repartojusto/features/auth/application/auth_providers.dart';
+import 'package:repartojusto/features/offers/aplication/offer_providers.dart';
 
-class OfferFormScreen extends StatefulWidget {
+class OfferFormScreen extends ConsumerStatefulWidget {
+  final String groupId;
+  final String projectId;
+  final String taskId;
+  final String? parentOfferId;
+
   const OfferFormScreen({
     super.key,
     required this.groupId,
     required this.projectId,
     required this.taskId,
+    this.parentOfferId,
   });
 
-  final String groupId;
-  final String projectId;
-  final String taskId;
-
   @override
-  State<OfferFormScreen> createState() => _OfferFormScreenState();
+  ConsumerState<OfferFormScreen> createState() => _OfferFormScreenState();
 }
 
-class _OfferFormScreenState extends State<OfferFormScreen> {
+class _OfferFormScreenState extends ConsumerState<OfferFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _pointsController = TextEditingController();
   final _hoursController = TextEditingController();
-  final _messageController = TextEditingController();
-  bool _isLoading = false;
+  final _argumentController = TextEditingController();
+
+  bool _isSaving = false;
 
   @override
   void dispose() {
     _pointsController.dispose();
     _hoursController.dispose();
-    _messageController.dispose();
+    _argumentController.dispose();
     super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Nueva oferta')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              children: [
-                Text(
-                  'Hacer oferta',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Indica los puntos que pides, horas estimadas y tu motivación. El grupo votará tu propuesta.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Puntos
-                TextFormField(
-                  controller: _pointsController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Puntos que pides',
-                    hintText: 'ej. 40',
-                    prefixIcon: Icon(Icons.star_outlined),
-                    helperText: 'Peso de la tarea en el proyecto',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Requerido';
-                    final points = int.tryParse(value);
-                    if (points == null || points <= 0) return 'Debe ser > 0';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Horas
-                TextFormField(
-                  controller: _hoursController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Horas estimadas',
-                    hintText: 'ej. 12',
-                    prefixIcon: Icon(Icons.access_time_outlined),
-                    helperText: 'Tiempo que necesitas para completarla',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Requerido';
-                    final hours = int.tryParse(value);
-                    if (hours == null || hours <= 0) return 'Debe ser > 0';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Mensaje
-                TextFormField(
-                  controller: _messageController,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Motivación / Comentario',
-                    hintText: 'Explica por qué eres la mejor persona para esta tarea, tu experiencia, disponibilidad...',
-                    prefixIcon: Icon(Icons.description_outlined),
-                    alignLabelWithHint: true,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Escribe algo';
-                    if (value.trim().length < 10) return 'Mínimo 10 caracteres';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // Aviso de equidad (simulado)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.amber.shade700),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Si tu oferta supera tu cuota justa en +20%, el árbitro deberá justificar la asignación.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.amber.shade900,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                LoadingButton(
-                  onPressed: _submit,
-                  isLoading: _isLoading,
-                  child: const Text('Enviar oferta'),
-                ),
-
-                const SizedBox(height: 16),
-
-                TextButton(
-                  onPressed: () => context.pop(),
-                  child: const Text('Cancelar'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1)); // Simulación
+    final user = ref.read(authStateChangesProvider).value;
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      context.pop();
-      showAppSnackBar(context, 'Oferta enviada (simulado). El grupo votará ahora.');
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes iniciar sesión para enviar una oferta.'),
+        ),
+      );
+      return;
     }
+
+    setState(() => _isSaving = true);
+
+    try {
+      await ref.read(offerRepositoryProvider).createOffer(
+            groupId: widget.groupId,
+            projectId: widget.projectId,
+            taskId: widget.taskId,
+            authorId: user.uid,
+            points: int.parse(_pointsController.text.trim()),
+            hours: int.parse(_hoursController.text.trim()),
+            argument: _argumentController.text,
+            parentOfferId: widget.parentOfferId,
+          );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.parentOfferId == null
+                ? '¡Tu oferta fue enviada!'
+                : '¡Tu contraoferta fue enviada!',
+          ),
+        ),
+      );
+
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo guardar la oferta: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  String? _validatePositiveNumber(String? value, String field) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Ingresa $field.';
+    }
+
+    final number = int.tryParse(value.trim());
+
+    if (number == null || number <= 0) {
+      return 'Ingresa un número entero mayor que cero.';
+    }
+
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isCounterOffer = widget.parentOfferId != null;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isCounterOffer ? 'Crear contraoferta' : 'Hacer una oferta'),
+      ),
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Text(
+                isCounterOffer
+                    ? 'Propón una nueva distribución como respuesta a otra oferta.'
+                    : 'Indica cuántos puntos solicitas y cuántas horas estimas dedicar.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 20),
+
+              TextFormField(
+                controller: _pointsController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Puntos que solicitas',
+                  prefixIcon: Icon(Icons.stars_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    _validatePositiveNumber(value, 'los puntos'),
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _hoursController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Horas estimadas',
+                  prefixIcon: Icon(Icons.schedule),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    _validatePositiveNumber(value, 'las horas'),
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _argumentController,
+                maxLines: 5,
+                maxLength: 500,
+                decoration: const InputDecoration(
+                  labelText: 'Motivación de tu oferta',
+                  hintText:
+                      'Explica por qué propones esta cantidad de puntos y horas.',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().length < 10) {
+                    return 'Explica tu propuesta en al menos 10 caracteres.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+
+              FilledButton.icon(
+                onPressed: _isSaving ? null : _submit,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send),
+                label: Text(
+                  _isSaving
+                      ? 'Enviando...'
+                      : isCounterOffer
+                          ? 'Enviar contraoferta'
+                          : 'Enviar oferta',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -30,7 +30,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final profile = profileState.value;
       final location = state.matchedLocation;
 
-      final isAuthRoute = location == '/login' ||
+      final isAuthRoute =
+          location == '/login' ||
           location == '/register' ||
           location == '/role-selection';
 
@@ -91,14 +92,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'create',
             name: 'createGroup',
-            builder: (context, state) => const GroupDetailScreen(isCreating: true),
+            builder: (context, state) =>
+                const GroupDetailScreen(isCreating: true),
           ),
           GoRoute(
             path: ':groupId',
             name: 'groupDetail',
-            builder: (context, state) => GroupDetailScreen(
-              groupId: state.pathParameters['groupId']!,
-            ),
+            builder: (context, state) =>
+                GroupDetailScreen(groupId: state.pathParameters['groupId']!),
             routes: [
               GoRoute(
                 path: 'projects',
@@ -156,10 +157,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'newOffer',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
+
+          if (extra == null ||
+              extra['groupId'] == null ||
+              extra['projectId'] == null ||
+              extra['taskId'] == null) {
+            return const Scaffold(
+              body: Center(
+                child: Text('No se recibieron los datos de la tarea.'),
+              ),
+            );
+          }
+
           return OfferFormScreen(
-            groupId: extra?['groupId'] as String,
-            projectId: extra?['projectId'] as String,
-            taskId: extra?['taskId'] as String,
+            groupId: extra['groupId'] as String,
+            projectId: extra['projectId'] as String,
+            taskId: extra['taskId'] as String,
+            parentOfferId: extra['parentOfferId'] as String?,
           );
         },
       ),
@@ -195,4 +209,3 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
-

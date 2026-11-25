@@ -76,6 +76,7 @@ class TaskDetailScreen extends ConsumerWidget {
                 ),
               ),
               OfferList(
+                groupId: groupId,
                 projectId: projectId,
                 taskId: taskId,
                 isGroupLeader: false,
@@ -185,7 +186,14 @@ class TaskDetailScreen extends ConsumerWidget {
         if (canOffer)
           FilledButton.icon(
             onPressed: () {
-              showAppSnackBar(context, 'Ofertas disponibles en la Fase 3');
+              context.pushNamed(
+                'newOffer',
+                extra: {
+                  'groupId': groupId,
+                  'projectId': projectId,
+                  'taskId': taskId,
+                },
+              );
             },
             icon: const Icon(Icons.gavel_outlined),
             label: const Text('Hacer oferta'),

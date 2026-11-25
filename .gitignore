@@ -46,3 +46,28 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Windows / OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Android / Kotlin / Gradle
+**/.kotlin/
+**/android/.gradle/
+**/android/.cxx/
+*.apk
+*.aab
+*.apks
+
+# Firebase CLI / Emulators
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+database-debug.log*
+
+# Local environment files
+.env
+.env.*
+!.env.example

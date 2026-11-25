@@ -1,4 +1,3 @@
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:repartojusto/features/offers/data/offer_repository.dart';
 import 'package:repartojusto/features/offers/domain/offer.dart';

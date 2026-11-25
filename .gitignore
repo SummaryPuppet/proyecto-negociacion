@@ -71,3 +71,5 @@ database-debug.log*
 .env
 .env.*
 !.env.example
+devproyecto-negociacion*
+lib/features/notifications/

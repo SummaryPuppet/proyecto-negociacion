@@ -35,7 +35,7 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.person),
-            onPressed: () => context.go('/profile'),
+            onPressed: () => context.push('/profile'),
             tooltip: 'Perfil',
           ),
         ],

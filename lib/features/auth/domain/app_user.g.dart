@@ -15,6 +15,12 @@ _AppUser _$AppUserFromJson(Map<String, dynamic> json) => _AppUser(
   skills:
       (json['skills'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
+  availability:
+      (json['availability'] as Map<String, dynamic>?)?.map(
+        (k, e) =>
+            MapEntry(k, (e as List<dynamic>).map((e) => e as String).toList()),
+      ) ??
+      const {},
   groupIds:
       (json['groupIds'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
@@ -28,6 +34,7 @@ Map<String, dynamic> _$AppUserToJson(_AppUser instance) => <String, dynamic>{
   'photoUrl': instance.photoUrl,
   'role': _$UserRoleEnumMap[instance.role]!,
   'skills': instance.skills,
+  'availability': instance.availability,
   'groupIds': instance.groupIds,
   'createdAt': instance.createdAt,
 };

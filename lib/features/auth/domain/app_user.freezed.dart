@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppUser {
 
- String get uid; String get name; String get email; String? get photoUrl; UserRole get role; List<String> get skills; List<String> get groupIds; int get createdAt;
+ String get uid; String get name; String get email; String? get photoUrl; UserRole get role; List<String> get skills; AvailabilityMap get availability; List<String> get groupIds; int get createdAt;
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $AppUserCopyWith<AppUser> get copyWith => _$AppUserCopyWithImpl<AppUser>(this as
 @override
 bool operator ==(Object other) {
   final _this = this as AppUser;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppUser&&(identical(other.uid, _this.uid) || other.uid == _this.uid)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.email, _this.email) || other.email == _this.email)&&(identical(other.photoUrl, _this.photoUrl) || other.photoUrl == _this.photoUrl)&&(identical(other.role, _this.role) || other.role == _this.role)&&const DeepCollectionEquality().equals(other.skills, _this.skills)&&const DeepCollectionEquality().equals(other.groupIds, _this.groupIds)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppUser&&(identical(other.uid, _this.uid) || other.uid == _this.uid)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.email, _this.email) || other.email == _this.email)&&(identical(other.photoUrl, _this.photoUrl) || other.photoUrl == _this.photoUrl)&&(identical(other.role, _this.role) || other.role == _this.role)&&const DeepCollectionEquality().equals(other.skills, _this.skills)&&const DeepCollectionEquality().equals(other.availability, _this.availability)&&const DeepCollectionEquality().equals(other.groupIds, _this.groupIds)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as AppUser;
-  return Object.hash(runtimeType,_this.uid,_this.name,_this.email,_this.photoUrl,_this.role,const DeepCollectionEquality().hash(_this.skills),const DeepCollectionEquality().hash(_this.groupIds),_this.createdAt);
+  return Object.hash(runtimeType,_this.uid,_this.name,_this.email,_this.photoUrl,_this.role,const DeepCollectionEquality().hash(_this.skills),const DeepCollectionEquality().hash(_this.availability),const DeepCollectionEquality().hash(_this.groupIds),_this.createdAt);
 }
 
 @override
 String toString() {
   final _this = this as AppUser;
-  return 'AppUser(uid: ${_this.uid}, name: ${_this.name}, email: ${_this.email}, photoUrl: ${_this.photoUrl}, role: ${_this.role}, skills: ${_this.skills}, groupIds: ${_this.groupIds}, createdAt: ${_this.createdAt})';
+  return 'AppUser(uid: ${_this.uid}, name: ${_this.name}, email: ${_this.email}, photoUrl: ${_this.photoUrl}, role: ${_this.role}, skills: ${_this.skills}, availability: ${_this.availability}, groupIds: ${_this.groupIds}, createdAt: ${_this.createdAt})';
 }
 
 
@@ -54,7 +54,7 @@ abstract mixin class $AppUserCopyWith<$Res>  {
   factory $AppUserCopyWith(AppUser value, $Res Function(AppUser) _then) = _$AppUserCopyWithImpl;
 @useResult
 $Res call({
- String uid, String name, String email, String? photoUrl, UserRole role, List<String> skills, List<String> groupIds, int createdAt
+ String uid, String name, String email, String? photoUrl, UserRole role, List<String> skills, AvailabilityMap availability, List<String> groupIds, int createdAt
 });
 
 
@@ -71,7 +71,7 @@ class _$AppUserCopyWithImpl<$Res>
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? uid = null,Object? name = null,Object? email = null,Object? photoUrl = freezed,Object? role = null,Object? skills = null,Object? groupIds = null,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? uid = null,Object? name = null,Object? email = null,Object? photoUrl = freezed,Object? role = null,Object? skills = null,Object? availability = null,Object? groupIds = null,Object? createdAt = null,}) {
   return _then(AppUser(
 uid: null == uid ? _self.uid : uid // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -79,7 +79,8 @@ as String,email: null == email ? _self.email : email // ignore: cast_nullable_to
 as String,photoUrl: freezed == photoUrl ? _self.photoUrl : photoUrl // ignore: cast_nullable_to_non_nullable
 as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as UserRole,skills: null == skills ? _self.skills : skills // ignore: cast_nullable_to_non_nullable
-as List<String>,groupIds: null == groupIds ? _self.groupIds : groupIds // ignore: cast_nullable_to_non_nullable
+as List<String>,availability: null == availability ? _self.availability : availability // ignore: cast_nullable_to_non_nullable
+as AvailabilityMap,groupIds: null == groupIds ? _self.groupIds : groupIds // ignore: cast_nullable_to_non_nullable
 as List<String>,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as int,
   ));
@@ -166,10 +167,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String uid,  String name,  String email,  String? photoUrl,  UserRole role,  List<String> skills,  List<String> groupIds,  int createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String uid,  String name,  String email,  String? photoUrl,  UserRole role,  List<String> skills,  AvailabilityMap availability,  List<String> groupIds,  int createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppUser() when $default != null:
-return $default(_that.uid,_that.name,_that.email,_that.photoUrl,_that.role,_that.skills,_that.groupIds,_that.createdAt);case _:
+return $default(_that.uid,_that.name,_that.email,_that.photoUrl,_that.role,_that.skills,_that.availability,_that.groupIds,_that.createdAt);case _:
   return orElse();
 
 }
@@ -187,10 +188,10 @@ return $default(_that.uid,_that.name,_that.email,_that.photoUrl,_that.role,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String uid,  String name,  String email,  String? photoUrl,  UserRole role,  List<String> skills,  List<String> groupIds,  int createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String uid,  String name,  String email,  String? photoUrl,  UserRole role,  List<String> skills,  AvailabilityMap availability,  List<String> groupIds,  int createdAt)  $default,) {final _that = this;
 switch (_that) {
 case _AppUser():
-return $default(_that.uid,_that.name,_that.email,_that.photoUrl,_that.role,_that.skills,_that.groupIds,_that.createdAt);case _:
+return $default(_that.uid,_that.name,_that.email,_that.photoUrl,_that.role,_that.skills,_that.availability,_that.groupIds,_that.createdAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -207,10 +208,10 @@ return $default(_that.uid,_that.name,_that.email,_that.photoUrl,_that.role,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String uid,  String name,  String email,  String? photoUrl,  UserRole role,  List<String> skills,  List<String> groupIds,  int createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String uid,  String name,  String email,  String? photoUrl,  UserRole role,  List<String> skills,  AvailabilityMap availability,  List<String> groupIds,  int createdAt)?  $default,) {final _that = this;
 switch (_that) {
 case _AppUser() when $default != null:
-return $default(_that.uid,_that.name,_that.email,_that.photoUrl,_that.role,_that.skills,_that.groupIds,_that.createdAt);case _:
+return $default(_that.uid,_that.name,_that.email,_that.photoUrl,_that.role,_that.skills,_that.availability,_that.groupIds,_that.createdAt);case _:
   return null;
 
 }
@@ -222,7 +223,7 @@ return $default(_that.uid,_that.name,_that.email,_that.photoUrl,_that.role,_that
 @JsonSerializable()
 
 class _AppUser implements AppUser {
-  const _AppUser({required this.uid, required this.name, required this.email, this.photoUrl, required this.role,  List<String> skills = const [],  List<String> groupIds = const [], this.createdAt = 0}): _skills = skills,_groupIds = groupIds;
+  const _AppUser({required this.uid, required this.name, required this.email, this.photoUrl, required this.role,  List<String> skills = const [],  AvailabilityMap availability = const {},  List<String> groupIds = const [], this.createdAt = 0}): _skills = skills,_availability = availability,_groupIds = groupIds;
   factory _AppUser.fromJson(Map<String, dynamic> json) => _$AppUserFromJson(json);
 
 @override final  String uid;
@@ -235,6 +236,13 @@ class _AppUser implements AppUser {
   if (_skills is EqualUnmodifiableListView) return _skills;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_skills);
+}
+
+ final  AvailabilityMap _availability;
+@override@JsonKey() AvailabilityMap get availability {
+  if (_availability is EqualUnmodifiableMapView) return _availability;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_availability);
 }
 
  final  List<String> _groupIds;
@@ -259,18 +267,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppUser&&(identical(other.uid, uid) || other.uid == uid)&&(identical(other.name, name) || other.name == name)&&(identical(other.email, email) || other.email == email)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.role, role) || other.role == role)&&const DeepCollectionEquality().equals(other.skills, _skills)&&const DeepCollectionEquality().equals(other.groupIds, _groupIds)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppUser&&(identical(other.uid, uid) || other.uid == uid)&&(identical(other.name, name) || other.name == name)&&(identical(other.email, email) || other.email == email)&&(identical(other.photoUrl, photoUrl) || other.photoUrl == photoUrl)&&(identical(other.role, role) || other.role == role)&&const DeepCollectionEquality().equals(other.skills, _skills)&&const DeepCollectionEquality().equals(other.availability, _availability)&&const DeepCollectionEquality().equals(other.groupIds, _groupIds)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,uid,name,email,photoUrl,role,const DeepCollectionEquality().hash(_skills),const DeepCollectionEquality().hash(_groupIds),createdAt);
+    return Object.hash(runtimeType,uid,name,email,photoUrl,role,const DeepCollectionEquality().hash(_skills),const DeepCollectionEquality().hash(_availability),const DeepCollectionEquality().hash(_groupIds),createdAt);
 }
 
 @override
 String toString() {
-    return 'AppUser(uid: $uid, name: $name, email: $email, photoUrl: $photoUrl, role: $role, skills: $skills, groupIds: $groupIds, createdAt: $createdAt)';
+    return 'AppUser(uid: $uid, name: $name, email: $email, photoUrl: $photoUrl, role: $role, skills: $skills, availability: $availability, groupIds: $groupIds, createdAt: $createdAt)';
 }
 
 
@@ -281,7 +289,7 @@ abstract mixin class _$AppUserCopyWith<$Res> implements $AppUserCopyWith<$Res> {
   factory _$AppUserCopyWith(_AppUser value, $Res Function(_AppUser) _then) = __$AppUserCopyWithImpl;
 @override @useResult
 $Res call({
- String uid, String name, String email, String? photoUrl, UserRole role, List<String> skills, List<String> groupIds, int createdAt
+ String uid, String name, String email, String? photoUrl, UserRole role, List<String> skills, AvailabilityMap availability, List<String> groupIds, int createdAt
 });
 
 
@@ -298,7 +306,7 @@ class __$AppUserCopyWithImpl<$Res>
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? uid = null,Object? name = null,Object? email = null,Object? photoUrl = freezed,Object? role = null,Object? skills = null,Object? groupIds = null,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? uid = null,Object? name = null,Object? email = null,Object? photoUrl = freezed,Object? role = null,Object? skills = null,Object? availability = null,Object? groupIds = null,Object? createdAt = null,}) {
   return _then(_AppUser(
 uid: null == uid ? _self.uid : uid // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -306,7 +314,8 @@ as String,email: null == email ? _self.email : email // ignore: cast_nullable_to
 as String,photoUrl: freezed == photoUrl ? _self.photoUrl : photoUrl // ignore: cast_nullable_to_non_nullable
 as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as UserRole,skills: null == skills ? _self._skills : skills // ignore: cast_nullable_to_non_nullable
-as List<String>,groupIds: null == groupIds ? _self._groupIds : groupIds // ignore: cast_nullable_to_non_nullable
+as List<String>,availability: null == availability ? _self._availability : availability // ignore: cast_nullable_to_non_nullable
+as AvailabilityMap,groupIds: null == groupIds ? _self._groupIds : groupIds // ignore: cast_nullable_to_non_nullable
 as List<String>,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as int,
   ));

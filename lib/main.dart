@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'core/providers/theme_provider.dart';
 
 /// Punto de entrada de la aplicación.
 Future<void> main() async {
@@ -29,14 +30,17 @@ class RepartoJustoApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final brightness = MediaQuery.of(context).platformBrightness;
+    final themeModeAsync = ref.watch(themeModeProvider);
+
+    // Mientras carga el tema, usar system como fallback
+    final themeMode = themeModeAsync.asData?.value ?? ThemeMode.system;
 
     return MaterialApp.router(
       title: 'RepartoJusto',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.getTheme(Brightness.light),
-      darkTheme: AppTheme.getTheme(Brightness.dark),
-      themeMode: ThemeMode.system, // Respeta el tema del sistema
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
       routerConfig: router,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

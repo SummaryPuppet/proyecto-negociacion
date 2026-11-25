@@ -224,17 +224,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 const SizedBox(height: 24),
 
-                // Google Sign-In
-                OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _signUpWithGoogle,
-                  icon: Image.asset(
-                    'assets/images/google_logo.png',
-                    height: 20,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 20),
-                  ),
-                  label: const Text('Continuar con Google'),
-                ),
-
                 const SizedBox(height: 16),
 
                 // Login

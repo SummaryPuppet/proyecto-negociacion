@@ -7,8 +7,8 @@ import 'package:repartojusto/core/utils/utils.dart';
 import 'package:repartojusto/core/errors/app_error.dart';
 import 'package:repartojusto/features/auth/application/auth_providers.dart';
 import 'package:repartojusto/features/projects/application/project_providers.dart';
+import 'package:repartojusto/features/projects/domain/project.dart';
 import 'package:repartojusto/features/tasks/application/task_providers.dart';
-import 'package:repartojusto/features/tasks/data/task_repository.dart';
 import 'package:repartojusto/features/tasks/domain/task.dart';
 
 import 'offer_list.dart';
@@ -79,8 +79,6 @@ class TaskDetailScreen extends ConsumerWidget {
                 groupId: groupId,
                 projectId: projectId,
                 taskId: taskId,
-                isGroupLeader: false,
-                isTeacher: isTeacher,
               ),
             ],
           );
@@ -98,7 +96,7 @@ class TaskDetailScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     Task task,
-    dynamic project,
+    Project? project,
     bool isTeacher,
   ) {
     final projectIsNegotiating = project?.isNegotiating ?? false;
@@ -141,6 +139,11 @@ class TaskDetailScreen extends ConsumerWidget {
                               : task.description,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
+                        // Asignado a - mostrar nombre si está asignada
+                        if (task.isAssigned && task.assigneeId != null) ...[
+                          const SizedBox(height: 16),
+                          _AssigneeDisplay(assigneeId: task.assigneeId!),
+                        ],
                       ],
                     ),
                   ),
@@ -182,7 +185,7 @@ class TaskDetailScreen extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // Botón de oferta (Fase 3)
+        // Botón de oferta
         if (canOffer)
           FilledButton.icon(
             onPressed: () {
@@ -199,32 +202,8 @@ class TaskDetailScreen extends ConsumerWidget {
             label: const Text('Hacer oferta'),
           ),
 
-        // Ofertas (Fase 3)
-        SectionDivider(label: 'Ofertas'),
-        AppCard(
-          child: Column(
-            children: [
-              const Icon(Icons.gavel_outlined, size: 48, color: Colors.grey),
-              const SizedBox(height: 12),
-              Text(
-                'Sistema de ofertas',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Las ofertas, votos y contraofertas estarán disponibles en la Fase 3.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-
         const SizedBox(height: 16),
 
-        // Comentarios (Fase 4)
         // Comentarios de la tarea
         SectionDivider(label: 'Comentarios'),
         const SizedBox(height: 8),
@@ -233,26 +212,6 @@ class TaskDetailScreen extends ConsumerWidget {
             groupId: groupId,
             projectId: projectId,
             taskId: taskId,
-          ),
-        ),
-        AppCard(
-          child: Column(
-            children: [
-              const Icon(Icons.forum_outlined, size: 48, color: Colors.grey),
-              const SizedBox(height: 12),
-              Text(
-                'Sistema de comentarios',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'El hilo de discusión por tarea estará disponible en la Fase 4.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
           ),
         ),
       ],
@@ -369,6 +328,127 @@ class _StatCircle extends StatelessWidget {
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
+    );
+  }
+}
+
+/// Widget que muestra quién tiene asignada la tarea con nombre real
+class _AssigneeDisplay extends ConsumerWidget {
+  final String assigneeId;
+
+  const _AssigneeDisplay({required this.assigneeId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final nameAsync = ref.watch(userNameProvider(assigneeId));
+
+    return nameAsync.when(
+      data: (name) => _AssigneeDisplayContent(
+        name: name ?? _shortUid(assigneeId),
+        shortUid: _shortUid(assigneeId),
+      ),
+      loading: () => _AssigneeDisplayContent(
+        name: 'Cargando...',
+        shortUid: _shortUid(assigneeId),
+        isLoading: true,
+      ),
+      error: (_, __) => _AssigneeDisplayContent(
+        name: _shortUid(assigneeId),
+        shortUid: _shortUid(assigneeId),
+      ),
+    );
+  }
+
+  String _shortUid(String uid) {
+    if (uid.length <= 8) return uid;
+    return '${uid.substring(0, 8)}...';
+  }
+}
+
+class _AssigneeDisplayContent extends StatelessWidget {
+  final String name;
+  final String shortUid;
+  final bool isLoading;
+
+  const _AssigneeDisplayContent({
+    required this.name,
+    required this.shortUid,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: Text(
+              shortUid.substring(0, 1).toUpperCase(),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.assignment_ind_outlined,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Asignada a',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (isLoading)
+                  const SizedBox(
+                    height: 20,
+                    width: 100,
+                    child: LinearProgressIndicator(),
+                  )
+                else
+                  Text(
+                    name,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.check_circle,
+            color: Theme.of(context).colorScheme.primary,
+            size: 28,
+          ),
+        ],
+      ),
     );
   }
 }

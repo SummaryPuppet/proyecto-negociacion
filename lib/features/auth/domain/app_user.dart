@@ -11,6 +11,10 @@ enum UserRole {
   estudiante,
 }
 
+/// Disponibilidad horaria: mapa día -> lista de rangos "HH:mm-HH:mm"
+/// Ejemplo: {'Lunes': ['09:00-12:00', '14:00-18:00'], 'Martes': ['10:00-14:00']}
+typedef AvailabilityMap = Map<String, List<String>>;
+
 extension UserRoleX on UserRole {
   String get displayName {
     switch (this) {
@@ -40,6 +44,7 @@ abstract class AppUser with _$AppUser {
     String? photoUrl,
     required UserRole role,
     @Default([]) List<String> skills,
+    @Default({}) AvailabilityMap availability,
     @Default([]) List<String> groupIds,
     @Default(0) int createdAt,
   }) = _AppUser;

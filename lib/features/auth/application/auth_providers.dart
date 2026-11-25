@@ -57,3 +57,11 @@ final hasChosenRoleProvider = Provider<bool>((ref) {
   final profile = ref.watch(currentProfileSyncProvider);
   return profile != null;
 });
+
+/// Provider para obtener el nombre de un usuario por UID (para mostrar en ofertas, etc.)
+final userNameProvider = FutureProvider.family<String?, String>((ref, uid) async {
+  if (uid.isEmpty) return null;
+  final userRepository = ref.watch(userRepositoryProvider);
+  final profile = await userRepository.getProfile(uid);
+  return profile?.name;
+});

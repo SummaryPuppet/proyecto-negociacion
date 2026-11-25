@@ -9,7 +9,10 @@ class TaskRepository {
   CollectionReference<Map<String, dynamic>> _tasksCollection(String groupId, String projectId) =>
       _firestore.collection('groups').doc(groupId).collection('projects').doc(projectId).collection('tasks');
 
-  /// Crea una tarea (solo docente).
+  DocumentReference<Map<String, dynamic>> _groupRef(String groupId) =>
+      _firestore.collection('groups').doc(groupId);
+
+  /// Crea una tarea (solo docente del grupo).
   Future<Result<Task>> createTask({
     required String groupId,
     required String projectId,
@@ -20,6 +23,18 @@ class TaskRepository {
     required List<String> skills,
   }) async {
     try {
+      // Validar que el caller es el docente del grupo
+      final groupDoc = await _groupRef(groupId).get();
+      if (!groupDoc.exists) {
+        return Failure(const BusinessError('Grupo no encontrado', 'group-not-found'));
+      }
+      final groupData = groupDoc.data()!;
+      final groupTeacherId = groupData['teacherId'] as String?;
+      final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+      if (currentUser == null || groupTeacherId != currentUser.uid) {
+        return Failure(const PermissionError('Solo el docente del grupo puede crear tareas', 'permission-denied'));
+      }
+
       final taskRef = _tasksCollection(groupId, projectId).doc();
       final now = DateTime.now().millisecondsSinceEpoch;
 

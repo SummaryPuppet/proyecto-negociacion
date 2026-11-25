@@ -59,12 +59,14 @@ class UserRepository {
     String? name,
     String? photoUrl,
     List<String>? skills,
+    AvailabilityMap? availability,
   }) async {
     try {
       final data = <String, dynamic>{};
       if (name != null) data['name'] = name.trim();
       if (photoUrl != null) data['photoUrl'] = photoUrl;
       if (skills != null) data['skills'] = skills;
+      if (availability != null) data['availability'] = availability;
       if (data.isEmpty) return const Success(null);
       await _usersCollection.doc(uid).update(data);
       return const Success(null);

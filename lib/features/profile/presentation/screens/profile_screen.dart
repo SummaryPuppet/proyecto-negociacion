@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/widgets/common_widgets.dart';
 import '../../../../../core/utils/utils.dart';
+import '../../../../../core/providers/theme_provider.dart';
+import 'skills_availability_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -79,7 +82,10 @@ class ProfileScreen extends StatelessWidget {
             icon: Icons.code_outlined,
             title: 'Skills y disponibilidad',
             subtitle: 'Tecnologías que dominas y horarios',
-            onTap: () => showAppSnackBar(context, 'Skills (pendiente)'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SkillsAvailabilityScreen()),
+            ),
           ),
 
           _SettingsTile(
@@ -310,20 +316,71 @@ class _SettingsTile extends StatelessWidget {
   }
 }
 
-class _ThemeSelector extends StatelessWidget {
+class _ThemeSelector extends ConsumerWidget {
+  const _ThemeSelector();
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeModeAsync = ref.watch(themeModeProvider);
+    // Usar system como fallback mientras carga
+    final themeMode = themeModeAsync.asData?.value ?? ThemeMode.system;
     final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
+    // Determinar el texto a mostrar según el themeMode actual
+    String currentLabel = 'Sistema';
+    IconData currentIcon = Icons.settings_system_daydream;
+    switch (themeMode) {
+      case ThemeMode.light:
+        currentLabel = 'Claro';
+        currentIcon = Icons.light_mode;
+        break;
+      case ThemeMode.dark:
+        currentLabel = 'Oscuro';
+        currentIcon = Icons.dark_mode;
+        break;
+      case ThemeMode.system:
+        currentLabel = isDark ? 'Sistema (Oscuro)' : 'Sistema (Claro)';
+        currentIcon = isDark ? Icons.dark_mode : Icons.light_mode;
+        break;
+    }
+
     return PopupMenuButton<ThemeMode>(
-      initialValue: ThemeMode.system,
-      onSelected: (mode) {
-        // TODO: Guardar preferencia de tema
-        showAppSnackBar(context, 'Tema cambiado a: ${mode.name}');
+      initialValue: themeMode,
+      onSelected: (mode) async {
+        await ref.read(themeModeNotifierProvider).setThemeMode(mode);
       },
       itemBuilder: (context) => [
-        const PopupMenuItem(value: ThemeMode.light, child: Text('Claro')),
-        const PopupMenuItem(value: ThemeMode.dark, child: Text('Oscuro')),
-        const PopupMenuItem(value: ThemeMode.system, child: Text('Sistema')),
+        PopupMenuItem<ThemeMode>(
+          value: ThemeMode.light,
+          child: Row(
+            children: [
+              Icon(Icons.light_mode, size: 20, color: themeMode == ThemeMode.light ? Theme.of(context).colorScheme.primary : null),
+              const SizedBox(width: 12),
+              const Text('Claro'),
+            ],
+          ),
+        ),
+        PopupMenuItem<ThemeMode>(
+          value: ThemeMode.dark,
+          child: Row(
+            children: [
+              Icon(Icons.dark_mode, size: 20, color: themeMode == ThemeMode.dark ? Theme.of(context).colorScheme.primary : null),
+              const SizedBox(width: 12),
+              const Text('Oscuro'),
+            ],
+          ),
+        ),
+        PopupMenuItem<ThemeMode>(
+          value: ThemeMode.system,
+          child: Row(
+            children: [
+              Icon(Icons.settings_system_daydream, size: 20, color: themeMode == ThemeMode.system ? Theme.of(context).colorScheme.primary : null),
+              const SizedBox(width: 12),
+              const Text('Sistema'),
+            ],
+          ),
+        ),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -335,13 +392,13 @@ class _ThemeSelector extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              brightness == Brightness.dark ? Icons.dark_mode : Icons.light_mode,
+              currentIcon,
               size: 16,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 6),
             Text(
-              brightness == Brightness.dark ? 'Oscuro' : 'Claro',
+              currentLabel,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),

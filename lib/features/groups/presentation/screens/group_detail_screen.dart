@@ -296,7 +296,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            SectionDivider(label: 'Proyectos'),
+            Expanded(child: SectionDivider(label: 'Proyectos')),
             TextButton.icon(
               onPressed: () => context.go('/groups/${group.id}/projects'),
               icon: const Icon(Icons.folder_open, size: 18),
@@ -317,41 +317,27 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     bool isTeacher,
     bool isLeader,
   ) {
-    // TODO: Cargar nombres reales de usuarios desde users collection
-    // Por ahora mostramos solo IDs con avatar
     return group.memberIds.map((memberId) {
       final isSelf = memberId == currentUserId;
       final isMemberTeacher = group.isTeacher(memberId);
       final isMemberLeader = group.isLeader(memberId);
 
-      return AppCard(
-        padding: const EdgeInsets.all(12),
-        child: ListTile(
-          leading: UserAvatar(name: memberId.substring(0, 8), radius: 22),
-          title: Text(isSelf ? '$memberId (tú)' : memberId.substring(0, 20)),
-          subtitle: Text(isSelf ? 'Tu cuenta' : 'Miembro'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isMemberTeacher)
-                StatusChip(label: 'Docente', status: StatusType.info),
-              if (isMemberLeader)
-                StatusChip(label: 'Jefe', status: StatusType.success),
-              if (isTeacher && !isSelf && !isMemberLeader)
-                TextButton(
-                  onPressed: () => _makeLeader(context, group.id, memberId),
-                  child: const Text('Nombrar jefe'),
-                ),
-              if (isTeacher && !isSelf)
-                TextButton(
-                  onPressed: () => _removeMember(context, group.id, memberId),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('Expulsar'),
-                ),
-            ],
-          ),
-        ));
-      }).toList();
+      return _MemberTile(
+        memberId: memberId,
+        isSelf: isSelf,
+        isMemberTeacher: isMemberTeacher,
+        isMemberLeader: isMemberLeader,
+        groupId: group.id,
+        isTeacher: isTeacher,
+        currentUserId: currentUserId,
+        onMakeLeader: isTeacher && !isSelf && !isMemberLeader
+            ? () => _makeLeader(context, group.id, memberId)
+            : null,
+        onRemoveMember: isTeacher && !isSelf
+            ? () => _removeMember(context, group.id, memberId)
+            : null,
+      );
+    }).toList();
   }
 
   Future<void> _createGroup() async {
@@ -711,5 +697,125 @@ class _ProjectTile extends StatelessWidget {
       default:
         return StatusType.neutral;
     }
+  }
+}
+
+/// Widget para mostrar un miembro con nombre real (resuelto desde users collection)
+class _MemberTile extends ConsumerWidget {
+  final String memberId;
+  final bool isSelf;
+  final bool isMemberTeacher;
+  final bool isMemberLeader;
+  final String groupId;
+  final bool isTeacher;
+  final String currentUserId;
+  final VoidCallback? onMakeLeader;
+  final VoidCallback? onRemoveMember;
+
+  const _MemberTile({
+    required this.memberId,
+    required this.isSelf,
+    required this.isMemberTeacher,
+    required this.isMemberLeader,
+    required this.groupId,
+    required this.isTeacher,
+    required this.currentUserId,
+    this.onMakeLeader,
+    this.onRemoveMember,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final nameAsync = ref.watch(userNameProvider(memberId));
+
+    return nameAsync.when(
+      data: (name) => _MemberTileContent(
+        displayName: name ?? _shortUid(memberId),
+        isSelf: isSelf,
+        isMemberTeacher: isMemberTeacher,
+        isMemberLeader: isMemberLeader,
+        onMakeLeader: onMakeLeader,
+        onRemoveMember: onRemoveMember,
+        shortUid: _shortUid(memberId),
+      ),
+      loading: () => _MemberTileContent(
+        displayName: 'Cargando...',
+        isSelf: isSelf,
+        isMemberTeacher: isMemberTeacher,
+        isMemberLeader: isMemberLeader,
+        onMakeLeader: onMakeLeader,
+        onRemoveMember: onRemoveMember,
+        shortUid: _shortUid(memberId),
+        isLoading: true,
+      ),
+      error: (_, __) => _MemberTileContent(
+        displayName: _shortUid(memberId),
+        isSelf: isSelf,
+        isMemberTeacher: isMemberTeacher,
+        isMemberLeader: isMemberLeader,
+        onMakeLeader: onMakeLeader,
+        onRemoveMember: onRemoveMember,
+        shortUid: _shortUid(memberId),
+      ),
+    );
+  }
+
+  String _shortUid(String uid) {
+    if (uid.length <= 8) return uid;
+    return '${uid.substring(0, 8)}...';
+  }
+}
+
+class _MemberTileContent extends StatelessWidget {
+  final String displayName;
+  final bool isSelf;
+  final bool isMemberTeacher;
+  final bool isMemberLeader;
+  final VoidCallback? onMakeLeader;
+  final VoidCallback? onRemoveMember;
+  final String shortUid;
+  final bool isLoading;
+
+  const _MemberTileContent({
+    required this.displayName,
+    required this.isSelf,
+    required this.isMemberTeacher,
+    required this.isMemberLeader,
+    this.onMakeLeader,
+    this.onRemoveMember,
+    required this.shortUid,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(12),
+      child: ListTile(
+        leading: UserAvatar(name: shortUid, radius: 22),
+        title: Text(isSelf ? '$displayName (tú)' : displayName),
+        subtitle: Text(isSelf ? 'Tu cuenta' : 'Miembro'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isMemberTeacher)
+              StatusChip(label: 'Docente', status: StatusType.info),
+            if (isMemberLeader)
+              StatusChip(label: 'Jefe', status: StatusType.success),
+            if (onMakeLeader != null)
+              TextButton(
+                onPressed: isLoading ? null : onMakeLeader,
+                child: const Text('Nombrar jefe'),
+              ),
+            if (onRemoveMember != null)
+              TextButton(
+                onPressed: isLoading ? null : onRemoveMember,
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Expulsar'),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

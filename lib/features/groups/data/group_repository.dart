@@ -44,6 +44,7 @@ class GroupRepository {
           name: name.trim(),
           period: period.trim(),
           teacherId: teacherId,
+          leaderId: teacherId, // El creador es automáticamente jefe de grupo
           memberIds: [teacherId],
           joinCode: joinCode,
           createdAt: DateTime.now().millisecondsSinceEpoch,

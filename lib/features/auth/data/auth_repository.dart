@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:repartojusto/core/errors/app_error.dart';
 import 'package:repartojusto/core/utils/utils.dart';
-import 'package:repartojusto/core/firebase/google_auth_config.dart';
+import 'package:repartojusto/core/firebase/google_auth_config.dart' as google_auth_config;
 
 class AuthRepository {
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
@@ -123,5 +123,5 @@ class AuthRepository {
   }
 
   /// Web client ID para Google Sign-In en Android.
-  static String get googleWebClientId => googleWebClientId;
+  static String get googleWebClientId => google_auth_config.googleWebClientId;
 }

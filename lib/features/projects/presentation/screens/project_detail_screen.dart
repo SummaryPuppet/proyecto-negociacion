@@ -273,7 +273,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            SectionDivider(label: 'Tareas (${tasksAsync.value?.length ?? 0})'),
+            Expanded(child: SectionDivider(label: 'Tareas (${tasksAsync.value?.length ?? 0})')),
             if (isTeacher)
               TextButton.icon(
                 onPressed: () => _showCreateTaskDialog(context, project),
@@ -331,6 +331,14 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
   Future<void> _createProject() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Verificar permisos: solo el docente del grupo puede crear proyectos
+    final isTeacher = ref.read(isProjectTeacherProvider((groupId: widget.groupId, projectId: '')));
+    if (!isTeacher) {
+      showAppSnackBar(context, 'Solo el docente del grupo puede crear proyectos', isError: true);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     final negotiationDate = AppFormatters.parseDate(_negotiationDeadlineController.text);
@@ -723,7 +731,7 @@ class _TaskTile extends ConsumerWidget {
                     _MiniStat(icon: Icons.access_time_outlined, value: '${task.estHours} h', color: Theme.of(context).colorScheme.primary),
                     if (task.assigneeId != null) ...[
                       const SizedBox(width: 16),
-                      _MiniStat(icon: Icons.person_outline, value: _assigneeName(ref), color: context.success),
+                      _assigneeName(ref, context),
                     ],
                   ],
                 ),
@@ -780,9 +788,26 @@ class _TaskTile extends ConsumerWidget {
     }
   }
 
-  String _assigneeName(WidgetRef ref) {
-    // TODO: Cargar nombre real del usuario desde users collection
-    return task.assigneeId!.substring(0, 8);
+  Widget _assigneeName(WidgetRef ref, BuildContext context) {
+    final nameAsync = ref.watch(userNameProvider(task.assigneeId!));
+    const successColor = Colors.green;
+    return nameAsync.when(
+      data: (name) => _MiniStat(
+        icon: Icons.person_outline,
+        value: name ?? task.assigneeId!.substring(0, 8),
+        color: successColor,
+      ),
+      loading: () => _MiniStat(
+        icon: Icons.person_outline,
+        value: '...',
+        color: successColor,
+      ),
+      error: (_, __) => _MiniStat(
+        icon: Icons.person_outline,
+        value: task.assigneeId!.substring(0, 8),
+        color: successColor,
+      ),
+    );
   }
 
   Color _statusColor(BuildContext context) {

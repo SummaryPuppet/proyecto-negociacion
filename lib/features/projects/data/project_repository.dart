@@ -9,7 +9,10 @@ class ProjectRepository {
   CollectionReference<Map<String, dynamic>> _projectsCollection(String groupId) =>
       _firestore.collection('groups').doc(groupId).collection('projects');
 
-  /// Crea un proyecto (solo docente).
+  DocumentReference<Map<String, dynamic>> _groupRef(String groupId) =>
+      _firestore.collection('groups').doc(groupId);
+
+  /// Crea un proyecto (solo docente del grupo).
   Future<Result<Project>> createProject({
     required String groupId,
     required String title,
@@ -19,6 +22,17 @@ class ProjectRepository {
     required String teacherId,
   }) async {
     try {
+      // Validar que el caller es el docente del grupo
+      final groupDoc = await _groupRef(groupId).get();
+      if (!groupDoc.exists) {
+        return Failure(const BusinessError('Grupo no encontrado', 'group-not-found'));
+      }
+      final groupData = groupDoc.data()!;
+      final groupTeacherId = groupData['teacherId'] as String?;
+      if (groupTeacherId != teacherId) {
+        return Failure(const PermissionError('Solo el docente del grupo puede crear proyectos', 'permission-denied'));
+      }
+
       final projectRef = _projectsCollection(groupId).doc();
       final now = DateTime.now().millisecondsSinceEpoch;
 

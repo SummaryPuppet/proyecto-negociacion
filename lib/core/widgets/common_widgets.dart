@@ -208,18 +208,28 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (photoUrl != null && photoUrl!.isNotEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: NetworkImage(photoUrl!),
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-      );
-    }
-
-    // Generar color basado en el nombre
+    // Generar color basado en el nombre (para fallback)
     final hash = name.hashCode;
     final hue = (hash % 360).toDouble();
     final color = HSVColor.fromAHSV(1, hue, 0.6, 0.9).toColor();
+
+    if (photoUrl != null && photoUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: color,
+        backgroundImage: NetworkImage(photoUrl!),
+        // Fallback a iniciales si la imagen falla (ej. 429 de Google)
+        onBackgroundImageError: (_, __) {},
+        child: Text(
+          _initials(name),
+          style: TextStyle(
+            fontSize: fontSize ?? radius * 0.7,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+      );
+    }
 
     return CircleAvatar(
       radius: radius,

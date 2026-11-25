@@ -1,9 +1,111 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Modo desarrollo: permitir todas las operaciones de lectura y escritura
-    match /{document=**} {
-      allow read, write: if true;
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUid() {
+      return request.auth.uid;
+    }
+
+    function isMember(groupId) {
+      return getUid() in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+    }
+
+    function isTeacher(groupId) {
+      return getUid() == get(/databases/$(database)/documents/groups/$(groupId)).data.teacherId;
+    }
+
+    function isLeader(groupId) {
+      return getUid() == get(/databases/$(database)/documents/groups/$(groupId)).data.leaderId;
+    }
+
+    function isTeacherOrLeader(groupId) {
+      return isTeacher(groupId) || isLeader(groupId);
+    }
+
+    // Users - solo el propio usuario puede leer/escribir su documento
+    match /users/{uid} {
+      allow read, write: if isSignedIn() && getUid() == uid;
+    }
+
+    // Join codes - lectura pública para validar código
+    match /joinCodes/{code} {
+      allow read: if isSignedIn();
+      allow write: if false; // Solo backend
+    }
+
+    // Groups
+    match /groups/{groupId} {
+      allow read: if isSignedIn() && isMember(groupId);
+      allow create: if isSignedIn() && request.resource.data.teacherId == getUid();
+      allow update: if isSignedIn() && isTeacher(groupId);
+      allow delete: if isSignedIn() && isTeacher(groupId);
+
+      // Subcolección projects
+      match /projects/{projectId} {
+        allow read: if isSignedIn() && isMember(groupId);
+        allow create: if isSignedIn() && isTeacher(groupId);
+        allow update: if isSignedIn() && isTeacher(groupId);
+        allow delete: if isSignedIn() && isTeacher(groupId);
+
+        // Subcolección tasks
+        match /tasks/{taskId} {
+          allow read: if isSignedIn() && isMember(groupId);
+          allow create: if isSignedIn() && isTeacher(groupId);
+          allow update: if isSignedIn() && (
+            isTeacher(groupId) ||
+            (request.resource.data.assigneeId == getUid() && request.resource.data.keys().hasOnly(['status', 'updatedAt']))
+          );
+          allow delete: if isSignedIn() && isTeacher(groupId);
+
+          // Subcolección offers
+          match /offers/{offerId} {
+            allow read: if isSignedIn() && isMember(groupId);
+            allow create: if isSignedIn() &&
+              isMember(groupId) &&
+              request.resource.data.authorId == getUid() &&
+              request.resource.data.status == 'pending' &&
+              get(/databases/$(database)/documents/groups/$(groupId)/projects/$(projectId)/tasks/$(taskId)).data.status == 'open';
+            allow update: if isSignedIn() && isMember(groupId) && (
+              // Votar: solo modificar votes[uid]
+              (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'updatedAt']) &&
+               request.resource.data.votes[getUid()] in ['approve', 'reject'] &&
+               resource.data.votes[getUid()] == null) ||
+              // Aprobar/Forzar: solo líder/docente, campos inmutables
+              (isTeacherOrLeader(groupId) &&
+               request.resource.data.authorId == resource.data.authorId &&
+               request.resource.data.taskId == resource.data.taskId &&
+               request.resource.data.points == resource.data.points &&
+               request.resource.data.hours == resource.data.hours &&
+               request.resource.data.status in ['approved', 'rejected', 'forced'] &&
+               request.resource.data.resolvedBy == getUid())
+            );
+            allow delete: if false;
+          }
+
+          // Subcolección comments
+          match /comments/{commentId} {
+            allow read: if isSignedIn() && isMember(groupId);
+            allow create: if isSignedIn() && isMember(groupId) && request.resource.data.authorId == getUid();
+            allow update: if isSignedIn() && request.resource.data.authorId == getUid();
+            allow delete: if isSignedIn() && request.resource.data.authorId == getUid();
+          }
+        }
+      }
+
+      // Subcolección activity
+      match /activity/{activityId} {
+        allow read: if isSignedIn() && isMember(groupId);
+        allow write: if false; // Solo backend via repository
+      }
+    }
+
+    // Notifications - solo el dueño
+    match /notifications/{notificationId} {
+      allow read, write: if isSignedIn() && resource.data.userId == getUid();
     }
   }
 }
